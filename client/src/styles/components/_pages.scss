@@ -1,0 +1,848 @@
+@use '../variables' as *;
+@use '../mixins' as *;
+
+// ── Template Builder ──────────────────────────────────────
+.template-page {
+    min-height: 100vh;
+    background: $bg-primary;
+    padding: $spacing-xl $spacing-lg $spacing-2xl;
+    max-width: 680px;
+    margin: 0 auto;
+
+    .page-header {
+        @include flex-between;
+        margin-bottom: $spacing-xl;
+
+        .back-btn {
+            @include flex-center;
+            width: 40px;
+            height: 40px;
+            border-radius: $radius-full;
+            border: 1.5px solid $border-color;
+            background: $bg-card;
+            cursor: pointer;
+            color: $text-primary;
+            transition: all $transition-fast;
+
+            &:hover {
+                background: $accent-green-light;
+                border-color: $accent-green;
+                color: $accent-green;
+            }
+
+            svg {
+                width: 18px;
+                height: 18px;
+            }
+        }
+
+        h1 {
+            font-size: $font-size-xl;
+            font-weight: 700;
+        }
+
+        .save-btn {
+            @include btn-base;
+            background: $accent-green;
+            color: white;
+            padding: $spacing-sm $spacing-lg;
+            font-size: $font-size-sm;
+
+            &:hover:not(:disabled) {
+                background: darken($accent-green, 5%);
+            }
+        }
+    }
+
+    .template-name-input {
+        @include input-base;
+        font-size: $font-size-lg;
+        font-weight: 600;
+        margin-bottom: $spacing-xl;
+    }
+
+    .blocks-section {
+        margin-bottom: $spacing-xl;
+
+        .section-label {
+            font-size: $font-size-sm;
+            font-weight: 600;
+            color: $text-secondary;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: $spacing-md;
+        }
+    }
+
+    .block-item {
+        @include card-style;
+        padding: $spacing-lg;
+        margin-bottom: $spacing-md;
+        animation: slideUp 0.3s ease;
+
+        .block-header {
+            @include flex-between;
+            margin-bottom: $spacing-md;
+
+            .block-type-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: $spacing-xs;
+                padding: $spacing-xs $spacing-sm;
+                border-radius: $radius-sm;
+                font-size: $font-size-xs;
+                font-weight: 600;
+
+                &.texto_estatico {
+                    background: #E3F2FD;
+                    color: #1565C0;
+                }
+
+                &.texto_dinamico {
+                    background: $accent-green-light;
+                    color: $accent-green;
+                }
+
+                &.valores_dinamicos {
+                    background: $accent-yellow-light;
+                    color: #8B7000;
+                }
+
+                &.imagen {
+                    background: $accent-beige;
+                    color: #8B5E34;
+                }
+            }
+
+            .block-actions {
+                display: flex;
+                gap: $spacing-xs;
+
+                button {
+                    @include flex-center;
+                    width: 28px;
+                    height: 28px;
+                    border: none;
+                    background: transparent;
+                    cursor: pointer;
+                    border-radius: $radius-sm;
+                    color: $text-muted;
+                    font-size: $font-size-lg;
+                    transition: all $transition-fast;
+
+                    &:hover {
+                        background: rgba(0, 0, 0, 0.05);
+                        color: $text-primary;
+                    }
+
+                    &.delete-btn:hover {
+                        background: $error-bg;
+                        color: $error-color;
+                    }
+                }
+            }
+        }
+
+        .block-fields {
+            display: flex;
+            flex-direction: column;
+            gap: $spacing-sm;
+
+            input,
+            textarea {
+                @include input-base;
+                font-size: $font-size-sm;
+            }
+
+            textarea {
+                min-height: 80px;
+                resize: vertical;
+            }
+
+            label {
+                font-size: $font-size-xs;
+                font-weight: 500;
+                color: $text-secondary;
+            }
+        }
+    }
+
+    .add-block-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: $spacing-sm;
+
+        .add-block-btn {
+            @include card-style;
+            @include flex-column;
+            align-items: center;
+            gap: $spacing-sm;
+            padding: $spacing-lg;
+            border: 2px dashed $border-color;
+            background: transparent;
+            cursor: pointer;
+            font-family: $font-family;
+            font-size: $font-size-xs;
+            font-weight: 500;
+            color: $text-secondary;
+            transition: all $transition-fast;
+
+            &:hover {
+                border-color: $accent-green;
+                color: $accent-green;
+                background: $accent-green-light;
+            }
+
+            .block-icon {
+                font-size: $font-size-xl;
+            }
+        }
+    }
+}
+
+// ── Contract Form ─────────────────────────────────────────
+.contract-form-page {
+    min-height: 100vh;
+    background: $bg-primary;
+    padding: $spacing-xl $spacing-lg $spacing-2xl;
+    max-width: 680px;
+    margin: 0 auto;
+
+    .page-header {
+        @include flex-between;
+        margin-bottom: $spacing-xl;
+
+        .back-btn {
+            @include flex-center;
+            width: 40px;
+            height: 40px;
+            border-radius: $radius-full;
+            border: 1.5px solid $border-color;
+            background: $bg-card;
+            cursor: pointer;
+            color: $text-primary;
+            transition: all $transition-fast;
+
+            &:hover {
+                background: $accent-green-light;
+                border-color: $accent-green;
+                color: $accent-green;
+            }
+
+            svg {
+                width: 18px;
+                height: 18px;
+            }
+        }
+
+        h1 {
+            font-size: $font-size-xl;
+            font-weight: 700;
+            flex: 1;
+            text-align: center;
+        }
+
+        .spacer {
+            width: 40px;
+        }
+    }
+
+    .contract-title-input {
+        @include input-base;
+        font-size: $font-size-lg;
+        font-weight: 600;
+        margin-bottom: $spacing-xl;
+    }
+
+    .form-block {
+        @include card-style;
+        padding: $spacing-lg;
+        margin-bottom: $spacing-md;
+
+        .block-label {
+            font-size: $font-size-sm;
+            font-weight: 600;
+            color: $text-primary;
+            margin-bottom: $spacing-sm;
+        }
+
+        .block-static-text {
+            font-size: $font-size-sm;
+            color: $text-secondary;
+            line-height: 1.6;
+            background: $bg-primary;
+            padding: $spacing-md;
+            border-radius: $radius-sm;
+        }
+
+        input,
+        textarea {
+            @include input-base;
+            font-size: $font-size-sm;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+    }
+
+    .submit-btn {
+        @include btn-base;
+        width: 100%;
+        background: $accent-green;
+        color: white;
+        padding: $spacing-md;
+        margin-top: $spacing-lg;
+
+        &:hover:not(:disabled) {
+            background: darken($accent-green, 5%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba($accent-green, 0.3);
+        }
+    }
+}
+
+// ── Profile Page ──────────────────────────────────────────
+.profile-page {
+    min-height: 100vh;
+    background: $bg-primary;
+    padding: $spacing-xl $spacing-lg;
+    max-width: 680px;
+    margin: 0 auto;
+    padding-bottom: 100px;
+
+    .page-header {
+        @include flex-between;
+        margin-bottom: $spacing-xl;
+
+        .back-btn {
+            @include flex-center;
+            width: 40px;
+            height: 40px;
+            border-radius: $radius-full;
+            border: 1.5px solid $border-color;
+            background: $bg-card;
+            cursor: pointer;
+            color: $text-primary;
+            transition: all $transition-fast;
+
+            &:hover {
+                background: $accent-green-light;
+                border-color: $accent-green;
+                color: $accent-green;
+            }
+
+            svg {
+                width: 18px;
+                height: 18px;
+            }
+        }
+
+        h1 {
+            font-size: $font-size-xl;
+            font-weight: 700;
+        }
+
+        .spacer {
+            width: 40px;
+        }
+    }
+
+    .profile-card {
+        @include card-style;
+        padding: $spacing-xl;
+        margin-bottom: $spacing-lg;
+        text-align: center;
+
+        .avatar-large {
+            @include flex-center;
+            width: 72px;
+            height: 72px;
+            border-radius: $radius-full;
+            background: $accent-beige;
+            font-size: $font-size-2xl;
+            font-weight: 700;
+            color: #8B5E34;
+            margin: 0 auto $spacing-md;
+        }
+
+        .profile-email {
+            font-size: $font-size-lg;
+            font-weight: 600;
+            color: $text-primary;
+        }
+
+        .profile-since {
+            font-size: $font-size-xs;
+            color: $text-secondary;
+            margin-top: $spacing-xs;
+        }
+    }
+
+    .section-card {
+        @include card-style;
+        padding: $spacing-xl;
+        margin-bottom: $spacing-lg;
+
+        h3 {
+            font-size: $font-size-base;
+            font-weight: 700;
+            color: $text-primary;
+            margin-bottom: $spacing-lg;
+        }
+
+        .plan-current {
+            @include flex-between;
+            margin-bottom: $spacing-lg;
+
+            .plan-name {
+                font-size: $font-size-lg;
+                font-weight: 700;
+                color: $accent-green;
+            }
+
+            .plan-badge-large {
+                padding: $spacing-xs $spacing-md;
+                border-radius: $radius-xl;
+                font-size: $font-size-sm;
+                font-weight: 600;
+                background: $accent-green-light;
+                color: $accent-green;
+            }
+        }
+
+        .progress-item {
+            margin-bottom: $spacing-md;
+
+            .progress-label {
+                @include flex-between;
+                font-size: $font-size-sm;
+                color: $text-secondary;
+                margin-bottom: $spacing-xs;
+            }
+
+            .progress-bar {
+                height: 8px;
+                background: $border-color;
+                border-radius: 4px;
+                overflow: hidden;
+
+                .progress-fill {
+                    height: 100%;
+                    background: $accent-green;
+                    border-radius: 4px;
+                    transition: width 0.5s ease;
+
+                    &.warning {
+                        background: #F59E0B;
+                    }
+
+                    &.danger {
+                        background: $error-color;
+                    }
+                }
+            }
+        }
+
+        .upgrade-btn {
+            @include btn-base;
+            width: 100%;
+            background: linear-gradient(135deg, $accent-green, darken($accent-green, 10%));
+            color: white;
+            padding: $spacing-md;
+            margin-top: $spacing-md;
+
+            &:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 16px rgba($accent-green, 0.4);
+            }
+        }
+
+        .upgrade-benefits {
+            margin-top: $spacing-md;
+            padding: $spacing-md;
+            background: $accent-green-light;
+            border-radius: $radius-md;
+            font-size: $font-size-xs;
+            color: $text-secondary;
+            line-height: 1.8;
+
+            strong {
+                color: $text-primary;
+            }
+        }
+
+        .form-group {
+            margin-bottom: $spacing-md;
+
+            label {
+                display: block;
+                font-size: $font-size-sm;
+                font-weight: 500;
+                margin-bottom: $spacing-xs;
+                color: $text-primary;
+            }
+
+            input {
+                @include input-base;
+                font-size: $font-size-sm;
+            }
+        }
+
+        .save-password-btn {
+            @include btn-base;
+            width: 100%;
+            background: $text-primary;
+            color: white;
+            padding: $spacing-md;
+            font-size: $font-size-sm;
+
+            &:hover:not(:disabled) {
+                background: lighten($text-primary, 10%);
+            }
+        }
+
+        .success-msg {
+            text-align: center;
+            color: $accent-green;
+            font-size: $font-size-sm;
+            font-weight: 500;
+            margin-top: $spacing-md;
+        }
+
+        .error-msg {
+            text-align: center;
+            color: $error-color;
+            font-size: $font-size-sm;
+            font-weight: 500;
+            margin-top: $spacing-md;
+        }
+    }
+
+    .logout-btn {
+        @include btn-base;
+        width: 100%;
+        background: transparent;
+        color: $error-color;
+        border: 1.5px solid $error-color;
+        padding: $spacing-md;
+
+        &:hover {
+            background: $error-bg;
+        }
+    }
+}
+
+// ── Signature Page ────────────────────────────────────────
+.signature-page {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: $bg-card;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    @media (orientation: portrait) {
+        &::before {
+            content: '📱 Gira tu dispositivo a horizontal para una mejor experiencia';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: $accent-yellow-light;
+            color: #8B7000;
+            text-align: center;
+            padding: $spacing-sm;
+            font-size: $font-size-xs;
+            font-weight: 500;
+            z-index: 10;
+        }
+    }
+
+    .signature-header {
+        @include flex-between;
+        padding: $spacing-md $spacing-lg;
+        border-bottom: 1px solid $border-color;
+        flex-shrink: 0;
+
+        h2 {
+            font-size: $font-size-lg;
+            font-weight: 700;
+        }
+
+        .close-btn {
+            @include flex-center;
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: $radius-sm;
+            color: $text-secondary;
+            font-size: $font-size-xl;
+
+            &:hover {
+                background: $error-bg;
+                color: $error-color;
+            }
+        }
+    }
+
+    .signature-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: $spacing-lg;
+
+        .contract-block {
+            margin-bottom: $spacing-md;
+            font-size: $font-size-sm;
+            line-height: 1.7;
+            color: $text-primary;
+
+            &.static-block {
+                white-space: pre-wrap;
+            }
+
+            &.dynamic-block {
+                strong {
+                    color: $accent-green;
+                }
+            }
+
+            &.image-block {
+                img {
+                    max-width: 100%;
+                    border-radius: $radius-sm;
+                }
+            }
+        }
+    }
+
+    .signature-footer {
+        flex-shrink: 0;
+        padding: $spacing-lg;
+        border-top: 1px solid $border-color;
+        background: $bg-primary;
+
+        .canvas-container {
+            margin-bottom: $spacing-md;
+
+            .canvas-label {
+                @include flex-between;
+                margin-bottom: $spacing-sm;
+
+                span {
+                    font-size: $font-size-sm;
+                    font-weight: 600;
+                }
+
+                button {
+                    font-size: $font-size-xs;
+                    color: $error-color;
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    font-family: $font-family;
+                    font-weight: 500;
+
+                    &:hover {
+                        text-decoration: underline;
+                    }
+                }
+            }
+
+            canvas {
+                width: 100%;
+                height: 120px;
+                border: 2px dashed $border-color;
+                border-radius: $radius-md;
+                cursor: crosshair;
+                touch-action: none;
+            }
+        }
+
+        .email-input-group {
+            margin-bottom: $spacing-md;
+
+            label {
+                display: block;
+                font-size: $font-size-sm;
+                font-weight: 500;
+                margin-bottom: $spacing-xs;
+            }
+
+            input {
+                @include input-base;
+                font-size: $font-size-sm;
+            }
+        }
+
+        .accept-btn {
+            @include btn-base;
+            width: 100%;
+            background: $accent-green;
+            color: white;
+            padding: $spacing-md;
+
+            &:disabled {
+                background: $text-muted;
+                cursor: not-allowed;
+            }
+
+            &:hover:not(:disabled) {
+                background: darken($accent-green, 5%);
+            }
+        }
+    }
+}
+
+// ── Modals ────────────────────────────────────────────────
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1500;
+    @include flex-center;
+    animation: fadeIn 0.2s ease;
+    padding: $spacing-lg;
+
+    .modal-content {
+        background: $bg-card;
+        border-radius: $radius-xl;
+        padding: $spacing-2xl;
+        max-width: 420px;
+        width: 100%;
+        box-shadow: $shadow-lg;
+        animation: slideUp 0.3s ease;
+        max-height: 80vh;
+        overflow-y: auto;
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: $spacing-xl;
+
+            .modal-icon {
+                font-size: 48px;
+                margin-bottom: $spacing-md;
+            }
+
+            h2 {
+                font-size: $font-size-xl;
+                font-weight: 700;
+            }
+
+            p {
+                font-size: $font-size-sm;
+                color: $text-secondary;
+                margin-top: $spacing-xs;
+            }
+        }
+
+        .modal-body {
+            margin-bottom: $spacing-xl;
+
+            .template-list-modal {
+                display: flex;
+                flex-direction: column;
+                gap: $spacing-sm;
+
+                .template-option {
+                    @include card-style;
+                    @include flex-between;
+                    padding: $spacing-md $spacing-lg;
+                    cursor: pointer;
+                    border: none;
+                    font-family: $font-family;
+                    text-align: left;
+                    width: 100%;
+
+                    &:hover {
+                        transform: translateX(4px);
+                        border-color: $accent-green;
+                    }
+
+                    .template-name {
+                        font-weight: 600;
+                        font-size: $font-size-sm;
+                        color: $text-primary;
+                    }
+
+                    .template-blocks {
+                        font-size: $font-size-xs;
+                        color: $text-secondary;
+                    }
+
+                    .chevron {
+                        color: $text-muted;
+                        font-size: $font-size-lg;
+                    }
+                }
+            }
+
+            .upgrade-features {
+                list-style: none;
+                padding: 0;
+
+                li {
+                    display: flex;
+                    align-items: center;
+                    gap: $spacing-sm;
+                    padding: $spacing-sm 0;
+                    font-size: $font-size-sm;
+                    color: $text-primary;
+
+                    &::before {
+                        content: '✓';
+                        @include flex-center;
+                        width: 20px;
+                        height: 20px;
+                        border-radius: $radius-full;
+                        background: $accent-green-light;
+                        color: $accent-green;
+                        font-size: $font-size-xs;
+                        font-weight: 700;
+                        flex-shrink: 0;
+                    }
+                }
+            }
+        }
+
+        .modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: $spacing-sm;
+
+            .btn-modal-primary {
+                @include btn-base;
+                width: 100%;
+                background: $accent-green;
+                color: white;
+                padding: $spacing-md;
+
+                &:hover {
+                    background: darken($accent-green, 5%);
+                }
+            }
+
+            .btn-modal-secondary {
+                @include btn-base;
+                width: 100%;
+                background: transparent;
+                color: $text-secondary;
+                padding: $spacing-md;
+
+                &:hover {
+                    background: rgba(0, 0, 0, 0.03);
+                }
+            }
+        }
+    }
+}

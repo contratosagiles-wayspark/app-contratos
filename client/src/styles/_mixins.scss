@@ -1,0 +1,96 @@
+@use 'variables' as *;
+
+// ── Card mixin ───────────────────────────────────────────────
+@mixin card-style {
+    background: $bg-card;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+    border: 1px solid rgba($border-color, 0.5);
+    transition: box-shadow $transition-base, transform $transition-base;
+
+    &:hover {
+        box-shadow: $shadow-md;
+    }
+}
+
+// ── Flex helpers ─────────────────────────────────────────────
+@mixin flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@mixin flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+@mixin flex-column {
+    display: flex;
+    flex-direction: column;
+}
+
+// ── Responsive ───────────────────────────────────────────────
+@mixin mobile {
+    @media (max-width: 480px) {
+        @content;
+    }
+}
+
+@mixin tablet {
+    @media (max-width: 768px) {
+        @content;
+    }
+}
+
+@mixin desktop {
+    @media (min-width: 769px) {
+        @content;
+    }
+}
+
+// ── Botón base ───────────────────────────────────────────────
+@mixin btn-base {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-sm;
+    padding: $spacing-md $spacing-xl;
+    border: none;
+    border-radius: $radius-lg;
+    font-family: $font-family;
+    font-size: $font-size-base;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all $transition-base;
+    text-decoration: none;
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+}
+
+// ── Input base ───────────────────────────────────────────────
+@mixin input-base {
+    width: 100%;
+    padding: $spacing-md $spacing-lg;
+    border: 1.5px solid $border-color;
+    border-radius: $radius-md;
+    font-family: $font-family;
+    font-size: $font-size-base;
+    color: $text-primary;
+    background: $bg-card;
+    transition: border-color $transition-fast, box-shadow $transition-fast;
+    outline: none;
+
+    &::placeholder {
+        color: $text-muted;
+    }
+
+    &:focus {
+        border-color: $accent-green;
+        box-shadow: 0 0 0 3px rgba($accent-green, 0.1);
+    }
+}

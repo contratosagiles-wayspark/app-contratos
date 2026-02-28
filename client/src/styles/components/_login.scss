@@ -1,0 +1,111 @@
+@use '../variables' as *;
+@use '../mixins' as *;
+
+.login-page,
+.register-page {
+    @include flex-column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: $spacing-xl;
+    background: $bg-primary;
+
+    .login-card {
+        @include card-style;
+        width: 100%;
+        max-width: 420px;
+        padding: $spacing-2xl;
+        animation: slideUp 0.5s ease;
+
+        .login-header {
+            text-align: center;
+            margin-bottom: $spacing-2xl;
+
+            .login-icon {
+                @include flex-center;
+                width: 64px;
+                height: 64px;
+                border-radius: $radius-lg;
+                background: $accent-green-light;
+                margin: 0 auto $spacing-lg;
+
+                svg {
+                    width: 28px;
+                    height: 28px;
+                    color: $accent-green;
+                }
+            }
+
+            h1 {
+                font-size: $font-size-2xl;
+                font-weight: 700;
+                color: $text-primary;
+                margin-bottom: $spacing-xs;
+            }
+
+            p {
+                font-size: $font-size-sm;
+                color: $text-secondary;
+            }
+        }
+
+        .form-group {
+            margin-bottom: $spacing-lg;
+
+            label {
+                display: block;
+                font-size: $font-size-sm;
+                font-weight: 500;
+                color: $text-primary;
+                margin-bottom: $spacing-sm;
+            }
+
+            input {
+                @include input-base;
+            }
+        }
+
+        .btn-primary {
+            @include btn-base;
+            width: 100%;
+            background: $accent-green;
+            color: white;
+            padding: $spacing-md;
+            font-size: $font-size-base;
+
+            &:hover:not(:disabled) {
+                background: darken($accent-green, 5%);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba($accent-green, 0.3);
+            }
+
+            &:active:not(:disabled) {
+                transform: translateY(0);
+            }
+        }
+
+        .error-message {
+            background: $error-bg;
+            color: $error-color;
+            padding: $spacing-md;
+            border-radius: $radius-sm;
+            font-size: $font-size-sm;
+            margin-bottom: $spacing-lg;
+            text-align: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: $spacing-xl;
+            font-size: $font-size-sm;
+            color: $text-secondary;
+
+            a {
+                color: $accent-green;
+                font-weight: 600;
+                margin-left: $spacing-xs;
+            }
+        }
+    }
+}
