@@ -12,6 +12,7 @@ const contratosRoutes = require('./routes/contratos');
 const plantillasRoutes = require('./routes/plantillas');
 const uploadsRoutes = require('./routes/uploads');
 const suscripcionesRoutes = require('./routes/suscripciones');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -83,6 +84,7 @@ app.use('/api/contratos', contratosRoutes);
 app.use('/api/plantillas', plantillasRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/suscripciones', suscripcionesRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ── Health check ────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
@@ -97,6 +99,7 @@ async function start() {
     try {
         await initDB();
         app.locals.emailTransporter = await setupEmailTransporter();
+        require('./jobs/verificarTrials');
         app.listen(PORT, () => {
             console.log(`\n🚀 Servidor corriendo en http://localhost:${PORT}`);
             console.log(`   API disponible en http://localhost:${PORT}/api\n`);

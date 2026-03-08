@@ -30,6 +30,19 @@ ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plan_estado VARCHAR(20) DEFAULT 'a
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS suscripcion_mp_id VARCHAR(255);
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plan_vencimiento TIMESTAMP;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS mes_actual VARCHAR(7);
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS nombre VARCHAR(255);
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS nombre_empresa VARCHAR(255);
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS logo_url TEXT;
+
+-- Columnas para backoffice de administración
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS rol VARCHAR(20) DEFAULT 'user';
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS trial_hasta TIMESTAMP;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS notas_admin TEXT;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS baja_motivo VARCHAR(255);
+
+-- Columnas adicionales para contratos (Tarea 2: teléfono como identificador)
+ALTER TABLE contratos ADD COLUMN IF NOT EXISTS cliente_numero VARCHAR(30);
+ALTER TABLE contratos ADD COLUMN IF NOT EXISTS cliente_nombre VARCHAR(255);
 
 -- Actualizar constraint de plan_actual para incluir 'Empresa'
 DO $$

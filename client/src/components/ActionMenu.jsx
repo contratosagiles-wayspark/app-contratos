@@ -33,9 +33,21 @@ function ActionMenu({ contrato, position, onClose, onAction }) {
                 ref={menuRef}
                 style={{ top: position.y, left: position.x }}
             >
+                {/* Previsualizar */}
+                <button
+                    className="action-menu-item"
+                    onClick={() => onAction('previsualizar', contrato)}
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    Previsualizar
+                </button>
+
                 {/* Descargar */}
                 <button
-                    className={`action-menu-item ${!contrato.pdf_url ? 'disabled' : ''}`}
+                    className="action-menu-item"
                     onClick={() => onAction('descargar', contrato)}
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

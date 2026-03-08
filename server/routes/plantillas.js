@@ -48,16 +48,31 @@ router.post('/', async (req, res) => {
     }
 
     try {
-        // Verificar límite freemium
+        // B2: Validación de límite de plantillas con COUNT real
+        const LIMITES = {
+            'Gratuito': { plantillas: 2 },
+            'Pro': { plantillas: Infinity },
+            'Empresa': { plantillas: Infinity },
+        };
+
         const userResult = await pool.query(
-            'SELECT plan_actual, plantillas_creadas FROM usuarios WHERE id_usuario = $1',
+            'SELECT plan_actual FROM usuarios WHERE id_usuario = $1',
             [req.session.userId]
         );
         const user = userResult.rows[0];
 
-        if (user.plan_actual === 'Gratuito' && user.plantillas_creadas >= 1) {
+        const countResult = await pool.query(
+            'SELECT COUNT(*) FROM plantillas WHERE id_usuario = $1',
+            [req.session.userId]
+        );
+        const total = parseInt(countResult.rows[0].count);
+        const limite = LIMITES[user.plan_actual]?.plantillas ?? 2;
+
+        if (total >= limite) {
             return res.status(403).json({
-                error: 'Has alcanzado el límite de 1 plantilla en el plan Gratuito.',
+                error: 'limite_plantillas_alcanzado',
+                mensaje: `Tu plan permite hasta ${limite} plantillas.`,
+                accion: 'upgrade',
                 upgrade: true,
             });
         }

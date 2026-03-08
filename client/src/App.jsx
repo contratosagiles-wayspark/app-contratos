@@ -6,6 +6,9 @@ import TemplatePage from './pages/TemplatePage';
 import ContractFormPage from './pages/ContractFormPage';
 import SignaturePage from './pages/SignaturePage';
 import ProfilePage from './pages/ProfilePage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminUsuariosPage from './pages/AdminUsuariosPage';
+import AdminUsuarioDetallePage from './pages/AdminUsuarioDetallePage';
 
 function App() {
     return (
@@ -19,6 +22,10 @@ function App() {
                 <Route path="/contrato/nuevo/:idPlantilla" element={<ContractFormPage />} />
                 <Route path="/firmar/:idContrato" element={<SignaturePage />} />
                 <Route path="/perfil" element={<ProfilePage />} />
+                {/* Admin routes — each page self-guards with 403 redirect */}
+                <Route path="/admin" element={<AdminDashboardPage />} />
+                <Route path="/admin/usuarios" element={<AdminUsuariosPage />} />
+                <Route path="/admin/usuarios/:id" element={<AdminUsuarioDetallePage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </BrowserRouter>

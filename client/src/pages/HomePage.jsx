@@ -94,11 +94,61 @@ function HomePage() {
         setMenuData(null);
 
         switch (action) {
-            case 'descargar':
-                if (contrato.pdf_url) {
-                    window.open(contrato.pdf_url, '_blank');
+            case 'previsualizar': {
+                try {
+                    const res = await fetch(`/api/contratos/${contrato.id_contrato}/pdf?modo=preview`, {
+                        credentials: 'include',
+                    });
+                    if (!res.ok) {
+                        let errorMsg = 'Error al generar el PDF.';
+                        try {
+                            const errData = await res.json();
+                            errorMsg = errData.error || errorMsg;
+                        } catch (_) { /* not JSON */ }
+                        alert(errorMsg);
+                        break;
+                    }
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                    // Liberar el blob URL después de un breve delay para que la pestaña cargue
+                    setTimeout(() => URL.revokeObjectURL(url), 10000);
+                } catch (err) {
+                    console.error('Error previsualizando PDF:', err);
+                    alert('Error de conexión al generar el PDF.');
                 }
                 break;
+            }
+
+            case 'descargar': {
+                try {
+                    const res = await fetch(`/api/contratos/${contrato.id_contrato}/pdf?modo=download`, {
+                        credentials: 'include',
+                    });
+                    if (!res.ok) {
+                        let errorMsg = 'Error al descargar el PDF.';
+                        try {
+                            const errData = await res.json();
+                            errorMsg = errData.error || errorMsg;
+                        } catch (_) { /* not JSON */ }
+                        alert(errorMsg);
+                        break;
+                    }
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `contrato_${contrato.id_contrato}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                } catch (err) {
+                    console.error('Error descargando PDF:', err);
+                    alert('Error de conexión al descargar el PDF.');
+                }
+                break;
+            }
 
             case 'firmar':
                 navigate(`/firmar/${contrato.id_contrato}`);

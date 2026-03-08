@@ -1,0 +1,598 @@
+@use '../variables' as *;
+@use '../mixins' as *;
+
+// ══════════════════════════════════════════════════════════════
+// Admin Backoffice Styles
+// ══════════════════════════════════════════════════════════════
+
+.admin-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: $spacing-lg;
+    min-height: 100vh;
+    background: $bg-primary;
+}
+
+.admin-header {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    margin-bottom: $spacing-xl;
+
+    h1 {
+        font-size: $font-size-2xl;
+        font-weight: 700;
+        color: $text-primary;
+        margin: 0;
+    }
+
+    .back-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: $spacing-sm;
+        color: $text-secondary;
+        display: flex;
+        align-items: center;
+
+        svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        &:hover {
+            color: $text-primary;
+        }
+    }
+
+    .spacer {
+        flex: 1;
+    }
+}
+
+.admin-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px;
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid $border-color;
+        border-top-color: $accent-green;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+}
+
+.admin-error {
+    text-align: center;
+    padding: $spacing-xl;
+    color: $error-color;
+    font-size: $font-size-lg;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+// ── Stats Cards Grid ────────────────────────────────────────
+.admin-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: $spacing-md;
+    margin-bottom: $spacing-xl;
+}
+
+.admin-stat-card {
+    background: $bg-card;
+    border-radius: $radius-md;
+    padding: $spacing-lg;
+    box-shadow: $shadow-sm;
+    border: 1px solid $border-color;
+    text-align: center;
+    transition: box-shadow $transition-fast;
+
+    &:hover {
+        box-shadow: $shadow-md;
+    }
+
+    .stat-icon {
+        font-size: 1.8rem;
+        margin-bottom: $spacing-sm;
+    }
+
+    .stat-value {
+        font-size: $font-size-2xl;
+        font-weight: 700;
+        color: $text-primary;
+        line-height: 1.2;
+    }
+
+    .stat-label {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        margin-top: $spacing-xs;
+    }
+
+    &.stat-pro .stat-value { color: #2563EB; }
+    &.stat-trial .stat-value { color: #D97706; }
+    &.stat-revenue .stat-value { color: $accent-green; }
+}
+
+// ── Detail Grid (Dashboard) ────────────────────────────────
+.admin-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: $spacing-md;
+    margin-bottom: $spacing-xl;
+}
+
+.admin-detail-card {
+    background: $bg-card;
+    border-radius: $radius-md;
+    padding: $spacing-lg;
+    box-shadow: $shadow-sm;
+    border: 1px solid $border-color;
+
+    h3 {
+        font-size: $font-size-lg;
+        font-weight: 600;
+        color: $text-primary;
+        margin: 0 0 $spacing-md;
+        padding-bottom: $spacing-sm;
+        border-bottom: 1px solid $border-color;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: $spacing-sm 0;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+
+        &:not(:last-child) {
+            border-bottom: 1px solid lighten($border-color, 3%);
+        }
+
+        .detail-value {
+            font-weight: 600;
+            color: $text-primary;
+        }
+
+        .text-red {
+            color: $error-color;
+        }
+    }
+}
+
+// ── Nav Section ─────────────────────────────────────────────
+.admin-nav-section {
+    text-align: center;
+
+    .admin-nav-btn {
+        display: inline-block;
+        background: $accent-green;
+        color: white;
+        border: none;
+        border-radius: $radius-sm;
+        padding: $spacing-md $spacing-xl;
+        font-size: $font-size-base;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background $transition-fast;
+
+        &:hover {
+            background: darken($accent-green, 8%);
+        }
+    }
+}
+
+// ── Filters ─────────────────────────────────────────────────
+.admin-filters {
+    display: flex;
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+    flex-wrap: wrap;
+
+    .search-form {
+        display: flex;
+        flex: 1;
+        min-width: 250px;
+        gap: $spacing-sm;
+
+        input {
+            flex: 1;
+            padding: $spacing-sm $spacing-md;
+            border: 1px solid $border-color;
+            border-radius: $radius-sm;
+            font-size: $font-size-sm;
+            font-family: $font-family;
+
+            &:focus {
+                outline: none;
+                border-color: $accent-green;
+            }
+        }
+
+        button {
+            background: $accent-green;
+            color: white;
+            border: none;
+            border-radius: $radius-sm;
+            padding: $spacing-sm $spacing-md;
+            font-size: $font-size-sm;
+            cursor: pointer;
+            font-family: $font-family;
+            white-space: nowrap;
+
+            &:hover {
+                background: darken($accent-green, 8%);
+            }
+        }
+    }
+
+    select {
+        padding: $spacing-sm $spacing-md;
+        border: 1px solid $border-color;
+        border-radius: $radius-sm;
+        font-size: $font-size-sm;
+        font-family: $font-family;
+        background: white;
+        cursor: pointer;
+        min-width: 160px;
+
+        &:focus {
+            outline: none;
+            border-color: $accent-green;
+        }
+    }
+}
+
+// ── Table ───────────────────────────────────────────────────
+.admin-table-wrapper {
+    overflow-x: auto;
+    background: $bg-card;
+    border-radius: $radius-md;
+    box-shadow: $shadow-sm;
+    border: 1px solid $border-color;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $font-size-sm;
+
+    th, td {
+        padding: $spacing-sm $spacing-md;
+        text-align: left;
+        border-bottom: 1px solid $border-color;
+    }
+
+    th {
+        font-weight: 600;
+        color: $text-secondary;
+        font-size: $font-size-xs;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: lighten($bg-primary, 1%);
+        white-space: nowrap;
+    }
+
+    tbody tr {
+        transition: background $transition-fast;
+
+        &:hover {
+            background: lighten($bg-primary, 1%);
+        }
+
+        &:last-child td {
+            border-bottom: none;
+        }
+    }
+
+    .user-cell {
+        .user-name {
+            font-weight: 600;
+            color: $text-primary;
+        }
+        .user-email {
+            font-size: $font-size-xs;
+            color: $text-muted;
+        }
+    }
+
+    .center {
+        text-align: center;
+    }
+
+    .empty-row {
+        text-align: center;
+        color: $text-muted;
+        padding: $spacing-xl;
+    }
+}
+
+.admin-mini-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $font-size-xs;
+
+    th, td {
+        padding: $spacing-xs $spacing-sm;
+        text-align: left;
+        border-bottom: 1px solid lighten($border-color, 3%);
+    }
+
+    th {
+        font-weight: 600;
+        color: $text-secondary;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .mono {
+        font-family: monospace;
+        font-size: 0.7rem;
+    }
+}
+
+// ── Badges ──────────────────────────────────────────────────
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: $font-size-xs;
+    font-weight: 600;
+    white-space: nowrap;
+
+    &.badge-gratis {
+        background: #F3F4F6;
+        color: #6B7280;
+    }
+
+    &.badge-pro {
+        background: #DBEAFE;
+        color: #2563EB;
+    }
+
+    &.badge-empresa {
+        background: #FEF3C7;
+        color: #B45309;
+    }
+
+    &.badge-activo {
+        background: #D1FAE5;
+        color: #059669;
+    }
+
+    &.badge-suspendido {
+        background: #FEE2E2;
+        color: #DC2626;
+    }
+
+    &.badge-cancelado {
+        background: #FEE2E2;
+        color: #B91C1C;
+    }
+
+    &.badge-trial {
+        background: #FEF3C7;
+        color: #D97706;
+    }
+}
+
+// ── Detail button ───────────────────────────────────────────
+.btn-detail {
+    background: transparent;
+    border: 1px solid $accent-green;
+    color: $accent-green;
+    border-radius: $radius-sm;
+    padding: 4px 12px;
+    font-size: $font-size-xs;
+    cursor: pointer;
+    font-family: $font-family;
+    white-space: nowrap;
+    transition: all $transition-fast;
+
+    &:hover {
+        background: $accent-green;
+        color: white;
+    }
+}
+
+// ── Pagination ──────────────────────────────────────────────
+.admin-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-md;
+    padding: $spacing-lg 0;
+
+    button {
+        background: $bg-card;
+        border: 1px solid $border-color;
+        border-radius: $radius-sm;
+        padding: $spacing-sm $spacing-md;
+        font-size: $font-size-sm;
+        cursor: pointer;
+        font-family: $font-family;
+        transition: all $transition-fast;
+
+        &:hover:not(:disabled) {
+            border-color: $accent-green;
+            color: $accent-green;
+        }
+
+        &:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+    }
+
+    span {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+    }
+}
+
+// ── Two-column Detail Layout ────────────────────────────────
+.admin-detail-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $spacing-lg;
+
+    @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.detail-left, .detail-right {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-md;
+}
+
+// ── Action Cards ────────────────────────────────────────────
+.admin-action-card {
+    background: $bg-card;
+    border-radius: $radius-md;
+    padding: $spacing-lg;
+    box-shadow: $shadow-sm;
+    border: 1px solid $border-color;
+
+    h3 {
+        font-size: $font-size-base;
+        font-weight: 700;
+        color: $text-primary;
+        margin: 0 0 $spacing-md;
+        padding-bottom: $spacing-sm;
+        border-bottom: 2px solid $accent-green;
+    }
+}
+
+.action-form {
+    .form-row {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-xs;
+        margin-bottom: $spacing-md;
+
+        label {
+            font-size: $font-size-sm;
+            font-weight: 600;
+            color: $text-secondary;
+        }
+
+        input, select, textarea {
+            padding: $spacing-sm;
+            border: 1px solid $border-color;
+            border-radius: $radius-sm;
+            font-size: $font-size-sm;
+            font-family: $font-family;
+
+            &:focus {
+                outline: none;
+                border-color: $accent-green;
+            }
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        input[type="number"] {
+            max-width: 100px;
+        }
+
+        &.checkbox-row {
+            flex-direction: row;
+            align-items: center;
+
+            label {
+                display: flex;
+                align-items: center;
+                gap: $spacing-sm;
+                cursor: pointer;
+                font-weight: 500;
+            }
+
+            input[type="checkbox"] {
+                width: 16px;
+                height: 16px;
+            }
+        }
+    }
+}
+
+.admin-btn {
+    width: 100%;
+    background: $accent-green;
+    color: white;
+    border: none;
+    border-radius: $radius-sm;
+    padding: $spacing-sm $spacing-md;
+    font-size: $font-size-sm;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: $font-family;
+    transition: background $transition-fast;
+
+    &:hover:not(:disabled) {
+        background: darken($accent-green, 8%);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    &.btn-trial {
+        background: #D97706;
+
+        &:hover:not(:disabled) {
+            background: darken(#D97706, 8%);
+        }
+    }
+}
+
+.action-msg {
+    font-size: $font-size-sm;
+    margin-top: $spacing-sm;
+    padding: $spacing-sm;
+    border-radius: $radius-sm;
+    background: lighten($bg-primary, 1%);
+}
+
+// ── Notes ───────────────────────────────────────────────────
+.notes-history {
+    background: lighten($bg-primary, 1%);
+    border: 1px solid $border-color;
+    border-radius: $radius-sm;
+    padding: $spacing-md;
+    margin-bottom: $spacing-md;
+    max-height: 200px;
+    overflow-y: auto;
+
+    pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: $font-size-xs;
+        color: $text-secondary;
+        font-family: $font-family;
+        line-height: 1.6;
+    }
+}
+
+.text-muted {
+    color: $text-muted;
+    font-size: $font-size-sm;
+}
+
+// ── Admin nav in Navbar ─────────────────────────────────────
+.nav-admin {
+    color: #D97706 !important;
+}

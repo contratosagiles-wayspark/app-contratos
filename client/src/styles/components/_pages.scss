@@ -907,8 +907,10 @@
     }
 
     .signature-footer {
-        flex-shrink: 0;
+        flex-shrink: 1;
+        overflow-y: auto;
         padding: $spacing-lg;
+        padding-bottom: $spacing-2xl;
         border-top: 1px solid $border-color;
         background: $bg-primary;
 

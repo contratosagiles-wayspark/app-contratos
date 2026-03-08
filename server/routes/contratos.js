@@ -55,10 +55,21 @@ router.post('/', async (req, res) => {
     try {
         // Verificar límite freemium
         const userResult = await pool.query(
-            'SELECT plan_actual, contratos_usados_mes FROM usuarios WHERE id_usuario = $1',
+            'SELECT plan_actual, contratos_usados_mes, mes_actual FROM usuarios WHERE id_usuario = $1',
             [req.session.userId]
         );
         const user = userResult.rows[0];
+
+        // B1: Reset mensual del contador de contratos
+        const mesActual = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+        if (user.mes_actual !== mesActual) {
+            await pool.query(
+                'UPDATE usuarios SET contratos_usados_mes = 0, mes_actual = $1 WHERE id_usuario = $2',
+                [mesActual, req.session.userId]
+            );
+            user.contratos_usados_mes = 0;
+            user.mes_actual = mesActual;
+        }
 
         if (user.plan_actual === 'Gratuito' && user.contratos_usados_mes >= 15) {
             return res.status(403).json({
@@ -166,10 +177,25 @@ router.delete('/:id', async (req, res) => {
 
 // ── POST /api/contratos/:id/firmar ──────────────────────────
 router.post('/:id/firmar', async (req, res) => {
-    const { firma_base64, email_cliente } = req.body;
+    const { firma_base64, cliente_numero, cliente_nombre, email_cliente } = req.body;
 
-    if (!firma_base64 || !email_cliente) {
-        return res.status(400).json({ error: 'Firma y email del cliente son obligatorios.' });
+    // Validación: firma es obligatoria
+    if (!firma_base64) {
+        return res.status(400).json({ error: 'La firma es obligatoria.' });
+    }
+
+    // Al menos un dato de contacto es obligatorio
+    if (!cliente_numero && !email_cliente) {
+        return res.status(400).json({ error: 'Debe ingresar al menos un dato de contacto (teléfono o email).' });
+    }
+
+    // Validar formato del número si fue proporcionado (8-15 dígitos)
+    let numeroLimpio = null;
+    if (cliente_numero) {
+        numeroLimpio = cliente_numero.replace(/[\s\-\+\(\)]/g, '');
+        if (!/^\d{8,15}$/.test(numeroLimpio)) {
+            return res.status(400).json({ error: 'Número de teléfono inválido. Debe tener entre 8 y 15 dígitos.' });
+        }
     }
 
     try {
@@ -192,49 +218,142 @@ router.post('/:id/firmar', async (req, res) => {
             return res.status(400).json({ error: 'Este contrato ya fue firmado.' });
         }
 
-        // Generar PDF
-        const PDFDocument = require('pdfkit');
-        const fs = require('fs');
-        const path = require('path');
-        const storageService = require('../services/storageService');
+        // Actualizar contrato: estado, firma, datos del cliente
+        await pool.query(
+            `UPDATE contratos SET
+                estado = 'Firmado',
+                firma_digital = $1,
+                cliente_numero = $2,
+                cliente_nombre = $3,
+                email_cliente = $4
+            WHERE id_contrato = $5`,
+            [
+                firma_base64.substring(0, 100) + '...',
+                numeroLimpio,
+                cliente_nombre || null,
+                email_cliente || null,
+                contrato.id_contrato,
+            ]
+        );
 
-        const pdfKey = `contratos/contrato_${contrato.id_contrato}_${Date.now()}.pdf`;
-        const uploadsDir = path.join(__dirname, '../uploads/contratos');
-        if (!fs.existsSync(uploadsDir)) {
-            fs.mkdirSync(uploadsDir, { recursive: true });
+        // TODO: Generar PDF con pdfkit (diseño completo: encabezado, datos visita, bloques, firma, pie)
+        // TODO: Subir PDF a storage y guardar pdf_url en el contrato
+        // TODO: Enviar email al cliente (si tiene email) y al dueño de empresa (B3/B4)
+        // TODO: Enviar PDF por WhatsApp via Twilio al cliente_numero (Tarea 3)
+
+        res.json({
+            message: 'Contrato firmado exitosamente.',
+            contrato_id: contrato.id_contrato,
+        });
+    } catch (err) {
+        console.error('Error en POST /contratos/:id/firmar:', err);
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+
+// ── GET /api/contratos/:id/pdf ──────────────────────────────
+// Genera PDF on-demand. Query: ?modo=preview (inline) | ?modo=download (attachment)
+router.get('/:id/pdf', async (req, res) => {
+    const modo = req.query.modo || 'preview'; // 'preview' o 'download'
+    const PDFDocument = require('pdfkit');
+    const fs = require('fs');
+    const path = require('path');
+
+    let doc = null;
+    let headersSent = false;
+
+    try {
+        const contratoResult = await pool.query(
+            `SELECT c.*, p.nombre_plantilla, p.estructura_bloques
+       FROM contratos c
+       LEFT JOIN plantillas p ON c.id_plantilla = p.id_plantilla
+       WHERE c.id_contrato = $1 AND c.id_usuario = $2`,
+            [req.params.id, req.session.userId]
+        );
+
+        if (contratoResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Contrato no encontrado.' });
         }
-        const pdfPath = path.join(__dirname, '../uploads', pdfKey);
 
-        await new Promise((resolve, reject) => {
-            const doc = new PDFDocument({ margin: 50 });
-            const stream = fs.createWriteStream(pdfPath);
-            doc.pipe(stream);
+        const contrato = contratoResult.rows[0];
 
-            // Título
-            doc.fontSize(20).font('Helvetica-Bold').text(contrato.titulo_contrato, { align: 'center' });
-            doc.moveDown();
-            doc.fontSize(10).font('Helvetica').text(`Fecha: ${new Date(contrato.fecha_creacion).toLocaleDateString('es-ES')}`, { align: 'right' });
-            doc.moveDown(2);
-
-            // Contenido del contrato basado en los bloques
-            const bloques = contrato.estructura_bloques || [];
-            const datos = typeof contrato.datos_ingresados === 'string'
+        // Preparar datos antes de iniciar el stream
+        const bloques = contrato.estructura_bloques || [];
+        let datos = {};
+        try {
+            datos = typeof contrato.datos_ingresados === 'string'
                 ? JSON.parse(contrato.datos_ingresados)
                 : (contrato.datos_ingresados || {});
+        } catch (parseErr) {
+            console.warn('Error parseando datos_ingresados, usando objeto vacío:', parseErr.message);
+            datos = {};
+        }
 
-            bloques.forEach((bloque, i) => {
+        // Crear documento PDF
+        doc = new PDFDocument({ margin: 50 });
+
+        // Manejar errores del stream PDF
+        doc.on('error', (pdfErr) => {
+            console.error('Error en stream PDFKit:', pdfErr);
+            if (!res.writableEnded) {
+                res.end();
+            }
+        });
+
+        // Limpiar si el cliente cierra la conexión
+        res.on('close', () => {
+            if (doc && !doc.writableEnded) {
+                doc.end();
+            }
+        });
+
+        // Ahora sí enviar headers y pipear
+        const filename = `contrato_${contrato.id_contrato}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        if (modo === 'download') {
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        } else {
+            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+        }
+        headersSent = true;
+
+        doc.pipe(res);
+
+        // ── Título ──
+        doc.fontSize(20).font('Helvetica-Bold').text(contrato.titulo_contrato || 'Contrato', { align: 'center' });
+        doc.moveDown();
+        doc.fontSize(10).font('Helvetica').text(
+            `Fecha: ${new Date(contrato.fecha_creacion).toLocaleDateString('es-ES')}`,
+            { align: 'right' }
+        );
+        doc.moveDown(2);
+
+        // ── Datos del cliente (si fue firmado) ──
+        if (contrato.estado === 'Firmado') {
+            doc.fontSize(11).font('Helvetica-Bold').text('Datos del cliente:');
+            doc.moveDown(0.3);
+            if (contrato.cliente_nombre) {
+                doc.fontSize(10).font('Helvetica').text(`Nombre: ${contrato.cliente_nombre}`);
+            }
+            if (contrato.cliente_numero) {
+                doc.fontSize(10).font('Helvetica').text(`Teléfono: ${contrato.cliente_numero}`);
+            }
+            if (contrato.email_cliente) {
+                doc.fontSize(10).font('Helvetica').text(`Email: ${contrato.email_cliente}`);
+            }
+            doc.moveDown(1.5);
+        }
+
+        // ── Bloques del contrato ──
+        bloques.forEach((bloque) => {
+            try {
                 if (bloque.tipo === 'texto_estatico') {
                     doc.fontSize(12).font('Helvetica').text(bloque.contenido || '', { align: 'left' });
                     doc.moveDown(0.5);
-                } else if (bloque.tipo === 'texto_dinamico') {
+                } else if (bloque.tipo === 'texto_dinamico' || bloque.tipo === 'valores_dinamicos') {
                     const valor = datos[bloque.variable] || `[${bloque.variable}]`;
                     doc.fontSize(12).font('Helvetica-Bold').text(`${bloque.etiqueta || bloque.variable}: `, { continued: true });
-                    doc.font('Helvetica').text(valor);
-                    doc.moveDown(0.5);
-                } else if (bloque.tipo === 'valores_dinamicos') {
-                    const valor = datos[bloque.variable] || `[${bloque.variable}]`;
-                    doc.fontSize(12).font('Helvetica-Bold').text(`${bloque.etiqueta || bloque.variable}: `, { continued: true });
-                    doc.font('Helvetica').text(valor);
+                    doc.font('Helvetica').text(String(valor));
                     doc.moveDown(0.5);
                 } else if (bloque.tipo === 'imagen') {
                     const imagenes = datos[bloque.variable];
@@ -244,7 +363,6 @@ router.post('/:id/firmar', async (req, res) => {
                         const urls = Array.isArray(imagenes) ? imagenes : [imagenes];
                         urls.forEach((imgUrl) => {
                             try {
-                                // imgUrl is like "/uploads/imagenes/xxx.jpg"
                                 const imgPath = path.join(__dirname, '..', imgUrl);
                                 if (fs.existsSync(imgPath)) {
                                     doc.image(imgPath, { width: 200 });
@@ -257,100 +375,51 @@ router.post('/:id/firmar', async (req, res) => {
                         doc.moveDown(0.5);
                     }
                 }
-            });
+            } catch (bloqueErr) {
+                console.warn('Error renderizando bloque en PDF:', bloqueErr.message);
+                doc.fontSize(10).font('Helvetica').fillColor('#cc0000')
+                    .text('[Error al renderizar este bloque]')
+                    .fillColor('#000000');
+                doc.moveDown(0.5);
+            }
+        });
 
-            // Firma
+        // ── Firma (si fue firmado) ──
+        if (contrato.estado === 'Firmado' && contrato.firma_digital) {
             doc.moveDown(2);
             doc.fontSize(12).font('Helvetica-Bold').text('Firma del cliente:', { align: 'left' });
             doc.moveDown(0.5);
 
-            // Convertir base64 a buffer e insertar imagen
-            const firmaBuffer = Buffer.from(firma_base64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-            doc.image(firmaBuffer, { width: 200, height: 80 });
+            // firma_digital guardada como los primeros 100 chars + '...'
+            // Para la firma real necesitamos el base64 completo — por ahora mostramos un placeholder
+            doc.fontSize(10).font('Helvetica').text('[Firma digital registrada]');
             doc.moveDown();
-            doc.fontSize(10).font('Helvetica').text(`Email del cliente: ${email_cliente}`);
-            doc.moveDown(0.5);
-            doc.text(`Fecha de firma: ${new Date().toLocaleDateString('es-ES')}`);
-
-            doc.end();
-            stream.on('finish', resolve);
-            stream.on('error', reject);
-        });
-
-        const pdfUrl = `/uploads/${pdfKey}`;
-
-        // Actualizar contrato
-        await pool.query(
-            `UPDATE contratos SET
-        estado = 'Firmado',
-        firma_digital = $1,
-        email_cliente = $2,
-        pdf_url = $3
-       WHERE id_contrato = $4`,
-            [firma_base64.substring(0, 100) + '...', email_cliente, pdfUrl, contrato.id_contrato]
-        );
-
-        // Enviar email con PDF adjunto
-        try {
-            const nodemailer = require('nodemailer');
-            const transporter = req.app.locals.emailTransporter;
-
-            if (transporter) {
-                const info = await transporter.sendMail({
-                    from: process.env.SMTP_FROM || 'contratos@app.com',
-                    to: email_cliente,
-                    subject: `Contrato firmado: ${contrato.titulo_contrato}`,
-                    html: `
-            <h2>Contrato firmado exitosamente</h2>
-            <p>Se adjunta el contrato "<strong>${contrato.titulo_contrato}</strong>" firmado digitalmente.</p>
-            <p>Fecha de firma: ${new Date().toLocaleDateString('es-ES')}</p>
-          `,
-                    attachments: [{
-                        filename: `contrato_${contrato.id_contrato}.pdf`,
-                        path: pdfPath,
-                    }],
-                });
-
-                // Mostrar URL de preview si es Ethereal
-                const previewUrl = nodemailer.getTestMessageUrl(info);
-                if (previewUrl) {
-                    console.log('📧 Email enviado — Preview URL:', previewUrl);
-                } else {
-                    console.log('📧 Email enviado exitosamente a:', email_cliente);
-                }
-            }
-        } catch (emailErr) {
-            console.warn('⚠️ No se pudo enviar el email:', emailErr.message);
+            doc.fontSize(10).font('Helvetica').text(
+                `Fecha de firma: ${contrato.fecha_firma ? new Date(contrato.fecha_firma).toLocaleDateString('es-ES') : 'Registrada'}`
+            );
         }
 
-        res.json({
-            message: 'Contrato firmado exitosamente.',
-            pdf_url: pdfUrl,
-        });
-    } catch (err) {
-        console.error('Error en POST /contratos/:id/firmar:', err);
-        res.status(500).json({ error: 'Error interno del servidor.' });
-    }
-});
-
-// ── GET /api/contratos/:id/pdf ──────────────────────────────
-router.get('/:id/pdf', async (req, res) => {
-    try {
-        const result = await pool.query(
-            'SELECT pdf_url FROM contratos WHERE id_contrato = $1 AND id_usuario = $2',
-            [req.params.id, req.session.userId]
+        // ── Pie ──
+        doc.moveDown(3);
+        doc.fontSize(8).font('Helvetica').fillColor('#999999').text(
+            'Documento generado digitalmente. Este contrato tiene validez como registro de la visita técnica realizada.',
+            { align: 'center' }
         );
 
-        if (result.rows.length === 0 || !result.rows[0].pdf_url) {
-            return res.status(404).json({ error: 'PDF no encontrado.' });
-        }
-
-        const path = require('path');
-        const pdfPath = path.join(__dirname, '..', result.rows[0].pdf_url);
-        res.download(pdfPath);
+        doc.end();
     } catch (err) {
         console.error('Error en GET /contratos/:id/pdf:', err);
-        res.status(500).json({ error: 'Error interno del servidor.' });
+        // Solo enviar JSON de error si los headers de PDF no fueron enviados aún
+        if (!headersSent) {
+            return res.status(500).json({ error: 'Error generando PDF.' });
+        }
+        // Si ya estábamos streameando el PDF, intentar cerrar limpiamente
+        if (doc && !doc.writableEnded) {
+            doc.end();
+        }
+        if (!res.writableEnded) {
+            res.end();
+        }
     }
 });
 

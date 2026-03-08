@@ -113,7 +113,8 @@ router.get('/me', async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT id_usuario, email, plan_actual, plan_estado, contratos_usados_mes,
-                    plantillas_creadas, suscripcion_mp_id, plan_vencimiento, created_at
+                    plantillas_creadas, suscripcion_mp_id, plan_vencimiento, mes_actual,
+                    nombre, nombre_empresa, logo_url, created_at, rol
        FROM usuarios WHERE id_usuario = $1`,
             [req.session.userId]
         );
