@@ -6,6 +6,7 @@ const storageService = require('../services/storageService');
 const path = require('path');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
 const { crearContratoSchema, actualizarContratoSchema, firmarContratoSchema, idContratoParamSchema, paginacionQuerySchema, pdfQuerySchema } = require('../validators/contratos');
+const { sanitizeObject } = require('../utils/sanitize');
 
 const router = express.Router();
 
@@ -37,7 +38,11 @@ router.get('/', validateQuery(paginacionQuerySchema), async (req, res) => {
         const total = parseInt(countResult.rows[0].count);
 
         res.json({
-            contratos: result.rows,
+            contratos: result.rows.map(c => ({
+                ...c,
+                titulo_contrato: sanitizeObject(c.titulo_contrato),
+                datos_ingresados: sanitizeObject(c.datos_ingresados),
+            })),
             total,
             page,
             totalPages: Math.ceil(total / limit),
@@ -114,7 +119,14 @@ router.get('/:id', validateParams(idContratoParamSchema), async (req, res) => {
             return res.status(404).json({ error: 'Contrato no encontrado.' });
         }
 
-        res.json({ contrato: result.rows[0] });
+        const contrato = result.rows[0];
+        res.json({
+            contrato: {
+                ...contrato,
+                titulo_contrato: sanitizeObject(contrato.titulo_contrato),
+                datos_ingresados: sanitizeObject(contrato.datos_ingresados),
+            },
+        });
     } catch (err) {
         console.error('Error en GET /contratos/:id:', err);
         res.status(500).json({ error: 'Error interno del servidor.' });

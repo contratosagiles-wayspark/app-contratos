@@ -2,6 +2,8 @@ const express = require('express');
 const { MercadoPagoConfig, PreApproval, Payment } = require('mercadopago');
 const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { validateBody } = require('../middleware/validate');
+const { crearSuscripcionSchema, webhookSchema } = require('../validators/suscripciones');
 
 const router = express.Router();
 
@@ -34,14 +36,8 @@ function getMPClient() {
 
 // ── POST /api/suscripciones/crear ───────────────────────────
 // Crea una suscripción en MercadoPago y devuelve la URL de checkout
-router.post('/crear', requireAuth, async (req, res) => {
+router.post('/crear', requireAuth, validateBody(crearSuscripcionSchema), async (req, res) => {
     const { plan } = req.body;
-
-    if (!plan || !PLANES[plan]) {
-        return res.status(400).json({
-            error: 'Plan inválido. Opciones: pro, empresa.',
-        });
-    }
 
     const planConfig = PLANES[plan];
 
@@ -110,7 +106,7 @@ router.post('/crear', requireAuth, async (req, res) => {
 
 // ── POST /api/suscripciones/webhook ─────────────────────────
 // Recibe notificaciones de MercadoPago (no requiere auth de sesión)
-router.post('/webhook', async (req, res) => {
+router.post('/webhook', validateBody(webhookSchema), async (req, res) => {
     // Responder 200 inmediatamente para que MP no reintente
     res.status(200).json({ ok: true });
 

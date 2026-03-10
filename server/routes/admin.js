@@ -2,6 +2,8 @@ const express = require('express');
 const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/authMiddleware');
 const { requireAdmin } = require('../middleware/requireAdmin');
+const { validateBody, validateParams, validateQuery } = require('../middleware/validate');
+const { queryUsuariosSchema, idUsuarioParamSchema, trialSchema, cambiarPlanSchema, notaSchema } = require('../validators/admin');
 
 const router = express.Router();
 
@@ -29,10 +31,9 @@ function planFromDb(plan) {
 // ══════════════════════════════════════════════════════════════
 // GET /api/admin/usuarios — Lista paginada con filtros
 // ══════════════════════════════════════════════════════════════
-router.get('/usuarios', async (req, res) => {
+router.get('/usuarios', validateQuery(queryUsuariosSchema), async (req, res) => {
     try {
-        const page = Math.max(1, parseInt(req.query.page) || 1);
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+        const { page, limit } = req.query;
         const offset = (page - 1) * limit;
         const { plan, buscar } = req.query;
 
@@ -107,7 +108,7 @@ router.get('/usuarios', async (req, res) => {
 // ══════════════════════════════════════════════════════════════
 // GET /api/admin/usuarios/:id — Detalle completo de un usuario
 // ══════════════════════════════════════════════════════════════
-router.get('/usuarios/:id', async (req, res) => {
+router.get('/usuarios/:id', validateParams(idUsuarioParamSchema), async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -200,13 +201,9 @@ router.get('/usuarios/:id', async (req, res) => {
 // ══════════════════════════════════════════════════════════════
 // POST /api/admin/usuarios/:id/trial — Activar/extender trial
 // ══════════════════════════════════════════════════════════════
-router.post('/usuarios/:id/trial', async (req, res) => {
+router.post('/usuarios/:id/trial', validateParams(idUsuarioParamSchema), validateBody(trialSchema), async (req, res) => {
     const { id } = req.params;
     const { dias, nota } = req.body;
-
-    if (!dias || dias < 1) {
-        return res.status(400).json({ error: 'Debe indicar un número de días válido.' });
-    }
 
     try {
         // Calcular trial_hasta
@@ -250,13 +247,9 @@ router.post('/usuarios/:id/trial', async (req, res) => {
 // ══════════════════════════════════════════════════════════════
 // POST /api/admin/usuarios/:id/cambiar-plan — Cambiar plan
 // ══════════════════════════════════════════════════════════════
-router.post('/usuarios/:id/cambiar-plan', async (req, res) => {
+router.post('/usuarios/:id/cambiar-plan', validateParams(idUsuarioParamSchema), validateBody(cambiarPlanSchema), async (req, res) => {
     const { id } = req.params;
     const { plan, plan_estado, motivo, notificar_usuario } = req.body;
-
-    if (!plan) {
-        return res.status(400).json({ error: 'Debe indicar el plan.' });
-    }
 
     const planDb = planToDb(plan);
     const estado = plan_estado || 'activo';
@@ -344,13 +337,9 @@ router.post('/usuarios/:id/cambiar-plan', async (req, res) => {
 // ══════════════════════════════════════════════════════════════
 // POST /api/admin/usuarios/:id/nota — Agregar nota interna
 // ══════════════════════════════════════════════════════════════
-router.post('/usuarios/:id/nota', async (req, res) => {
+router.post('/usuarios/:id/nota', validateParams(idUsuarioParamSchema), validateBody(notaSchema), async (req, res) => {
     const { id } = req.params;
     const { nota } = req.body;
-
-    if (!nota || !nota.trim()) {
-        return res.status(400).json({ error: 'La nota no puede estar vacía.' });
-    }
 
     try {
         const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 16);

@@ -1,6 +1,7 @@
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
+const { sanitizeForPDF } = require('../utils/sanitize');
 
 /**
  * Genera un PDF completo para un contrato firmado o en borrador.
@@ -75,7 +76,7 @@ async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBas
 // PLACEHOLDER — serán reemplazadas.
 
 function _renderEncabezado(doc, { nombreEmpresa, logoUrl }) {
-    const titulo = nombreEmpresa || 'Informe de Visita Técnica';
+    const titulo = sanitizeForPDF(nombreEmpresa) || 'Informe de Visita Técnica';
     if (logoUrl) {
         const logoPath = path.join(__dirname, '..', logoUrl);
         if (fs.existsSync(logoPath)) {
@@ -92,13 +93,13 @@ function _renderDatosCliente(doc, contrato) {
     doc.fontSize(11).font('Helvetica-Bold').text('Datos del cliente:', startX);
     doc.moveDown(0.3);
     if (contrato.cliente_nombre) {
-        doc.fontSize(10).font('Helvetica').text(`Nombre: ${contrato.cliente_nombre}`, startX);
+        doc.fontSize(10).font('Helvetica').text(`Nombre: ${sanitizeForPDF(contrato.cliente_nombre)}`, startX);
     }
     if (contrato.cliente_numero) {
-        doc.fontSize(10).font('Helvetica').text(`Teléfono: ${contrato.cliente_numero}`, startX);
+        doc.fontSize(10).font('Helvetica').text(`Teléfono: ${sanitizeForPDF(contrato.cliente_numero)}`, startX);
     }
     if (contrato.email_cliente) {
-        doc.fontSize(10).font('Helvetica').text(`Email: ${contrato.email_cliente}`, startX);
+        doc.fontSize(10).font('Helvetica').text(`Email: ${sanitizeForPDF(contrato.email_cliente)}`, startX);
     }
     // Borde izquierdo verde
     const endY = doc.y + 5;
@@ -114,10 +115,10 @@ function _renderBloques(doc, bloques, datos) {
 
         try {
             if (bloque.tipo === 'texto_estatico') {
-                doc.fontSize(11).font('Helvetica').fillColor('#333333').text(bloque.contenido || '', { align: 'left' });
+                doc.fontSize(11).font('Helvetica').fillColor('#333333').text(sanitizeForPDF(bloque.contenido || ''), { align: 'left' });
                 doc.moveDown(0.8);
             } else if (bloque.tipo === 'texto_dinamico' || bloque.tipo === 'valores_dinamicos') {
-                const valor = datos[bloque.variable] || '[Sin completar]';
+                const valor = sanitizeForPDF(datos[bloque.variable]) || '[Sin completar]';
                 const colorValor = datos[bloque.variable] ? '#000000' : '#999999';
                 doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000')
                    .text(`${bloque.etiqueta || bloque.variable}: `, { continued: true });
@@ -167,7 +168,7 @@ function _renderFirma(doc, firmaBase64, contrato) {
         doc.image(firmaBuffer, { width: 200 });
         doc.moveDown(0.5);
         if (contrato.cliente_nombre) {
-            doc.fontSize(10).font('Helvetica').text(contrato.cliente_nombre);
+            doc.fontSize(10).font('Helvetica').text(sanitizeForPDF(contrato.cliente_nombre));
         }
         const fechaFirma = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
         doc.fontSize(9).font('Helvetica').fillColor('#666666').text(`Firmado el ${fechaFirma}`);
