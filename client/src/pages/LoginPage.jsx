@@ -37,6 +37,35 @@ function LoginPage() {
         }
     };
 
+    const handleForgotPassword = async () => {
+        if (!email) {
+            setError('Por favor ingresa tu correo electrónico arriba para poder recuperar tu contraseña.');
+            return;
+        }
+        
+        setError('');
+        setLoading(true);
+        try {
+            const res = await fetch('/api/auth/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+            const data = await res.json();
+            
+            if (!res.ok) {
+                setError(data.error || 'Error al procesar la solicitud.');
+                return;
+            }
+            // Navigate to recover page with email in state
+            navigate('/recover', { state: { email } });
+        } catch (err) {
+            setError('Error de conexión. Inténtalo de nuevo.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="login-page">
             <div className="login-card">
@@ -81,6 +110,15 @@ function LoginPage() {
                             required
                             autoComplete="current-password"
                         />
+                        <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
+                            <button 
+                                type="button" 
+                                onClick={handleForgotPassword} 
+                                style={{ background: 'none', border:'none', color: '#2b7a3b', cursor: 'pointer', padding: 0, fontSize: '0.9rem' }}
+                            >
+                                Olvidé mi contraseña
+                            </button>
+                        </div>
                     </div>
 
                     <button

@@ -99,3 +99,14 @@ CREATE TABLE IF NOT EXISTS pagos (
   fecha               TIMESTAMP DEFAULT NOW(),
   payload_completo    JSONB
 );
+
+-- =============================================
+-- Recuperación de Contraseña
+-- =============================================
+CREATE TABLE IF NOT EXISTS recovery_codes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) NOT NULL,
+  code VARCHAR(10) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL
+);

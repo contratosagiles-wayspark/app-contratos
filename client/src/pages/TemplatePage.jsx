@@ -90,20 +90,49 @@ function TemplatePage() {
                 : '/api/plantillas';
             const method = isEditing ? 'PUT' : 'POST';
 
+            // Auto-generar y limpiar nombres de variables
+            const sanitizedBloques = bloques.map(({ id, ...rest }, index) => {
+                const isEstatico = rest.tipo === 'texto_estatico';
+                let varName = rest.variable ? rest.variable.trim() : '';
+
+                if (!varName && !isEstatico) {
+                    varName = rest.etiqueta || `var_bloque_${index}`;
+                }
+
+                if (varName) {
+                    rest.variable = varName
+                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                        .replace(/[^a-zA-Z0-9_]/g, '_')
+                        .replace(/_+/g, '_')
+                        .toLowerCase()
+                        .replace(/^_|_$/g, ''); // remove leading/trailing underscores
+                    
+                    if (!rest.variable) rest.variable = `var_${index}`;
+                } else {
+                    delete rest.variable;
+                }
+
+                return rest;
+            });
+
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
                     nombre_plantilla: nombre,
-                    estructura_bloques: bloques.map(({ id, ...rest }) => rest),
+                    estructura_bloques: sanitizedBloques,
                 }),
             });
 
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || 'Error al guardar.');
+                let errorMsg = data.error || 'Error al guardar.';
+                if (data.detalles && data.detalles.length > 0) {
+                    errorMsg += " " + data.detalles.map(d => `${d.campo.replace('estructura_bloques.', 'Bloque ')}: ${d.mensaje}`).join(', ');
+                }
+                setError(errorMsg);
                 return;
             }
 

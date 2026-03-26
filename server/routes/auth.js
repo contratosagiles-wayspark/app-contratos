@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db/pool');
 const { validateBody } = require('../middleware/validate');
-const { registerSchema, loginSchema, passwordChangeSchema } = require('../validators/auth');
+const { registerSchema, loginSchema, passwordChangeSchema, forgotPasswordSchema, validateCodeSchema, resetPasswordSchema } = require('../validators/auth');
 
 const router = express.Router();
 
@@ -147,6 +147,106 @@ router.put('/password', validateBody(passwordChangeSchema), async (req, res) => 
         res.json({ message: 'Contraseña actualizada exitosamente.' });
     } catch (err) {
         console.error('Error en cambio de contraseña:', err);
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+
+// ── POST /api/auth/forgot-password ──────────────────────────
+router.post('/forgot-password', validateBody(forgotPasswordSchema), async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        const result = await pool.query('SELECT id_usuario FROM usuarios WHERE email = $1', [email]);
+        if (result.rows.length === 0) {
+            // Retornamos exito igual para evitar enumeración de correos
+            return res.json({ message: 'Si el correo existe, se ha enviado un código.' });
+        }
+
+        // Generar código numérico de 6 dígitos
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+
+        // Borrar códigos anteriores para el email
+        await pool.query('DELETE FROM recovery_codes WHERE email = $1', [email]);
+
+        // Insertar nuevo
+        await pool.query(
+            'INSERT INTO recovery_codes (email, code, expires_at) VALUES ($1, $2, $3)',
+            [email, code, expiresAt]
+        );
+
+        // Enviar email
+        if (req.app.locals.emailTransporter) {
+            await req.app.locals.emailTransporter.sendMail({
+                from: '"Gestión de Contratos" <no-reply@gestioncontratos.com>',
+                to: email,
+                subject: 'Tu código de recuperación de contraseña',
+                text: `Tu código de recuperación es: ${code}\nEste código expirará en 15 minutos.`,
+                html: `<p>Hola,</p><p>Tu código de recuperación es: <b>${code}</b></p><p>Este código expirará en 15 minutos.</p>`,
+            });
+        }
+
+        res.json({ message: 'Si el correo existe, se ha enviado un código.' });
+    } catch (err) {
+        console.error('Error en forgot-password:', err);
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+
+// ── POST /api/auth/validate-code ────────────────────────────
+router.post('/validate-code', validateBody(validateCodeSchema), async (req, res) => {
+    const { email, code } = req.body;
+
+    try {
+        const result = await pool.query(
+            'SELECT * FROM recovery_codes WHERE email = $1 AND code = $2',
+            [email, code]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(400).json({ error: 'Código inválido o incorrecto.' });
+        }
+
+        const recovery = result.rows[0];
+        if (new Date() > new Date(recovery.expires_at)) {
+            return res.status(400).json({ error: 'El código ha expirado.' });
+        }
+
+        res.json({ message: 'Código válido.' });
+    } catch (err) {
+        console.error('Error en validate-code:', err);
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+
+// ── POST /api/auth/reset-password ───────────────────────────
+router.post('/reset-password', validateBody(resetPasswordSchema), async (req, res) => {
+    const { email, code, newPassword } = req.body;
+
+    try {
+        // Validar código de nuevo por seguridad
+        const codeCheck = await pool.query(
+            'SELECT * FROM recovery_codes WHERE email = $1 AND code = $2',
+            [email, code]
+        );
+
+        if (codeCheck.rows.length === 0 || new Date() > new Date(codeCheck.rows[0].expires_at)) {
+            return res.status(400).json({ error: 'Código inválido o expirado.' });
+        }
+
+        // Hashear nueva contraseña
+        const salt = await bcrypt.genSalt(12);
+        const contrasenaHash = await bcrypt.hash(newPassword, salt);
+
+        // Actualizar contraseña
+        await pool.query('UPDATE usuarios SET contrasena_hash = $1 WHERE email = $2', [contrasenaHash, email]);
+
+        // Borrar código
+        await pool.query('DELETE FROM recovery_codes WHERE email = $1', [email]);
+
+        res.json({ message: 'Contraseña restablecida exitosamente.' });
+    } catch (err) {
+        console.error('Error en reset-password:', err);
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });

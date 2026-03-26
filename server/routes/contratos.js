@@ -354,8 +354,8 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
             datos = {};
         }
 
-        // Crear documento PDF
-        doc = new PDFDocument({ margin: 50 });
+        // Crear documento PDF con soporte de páginas
+        doc = new PDFDocument({ margin: 50, bufferPages: true });
 
         // Manejar errores del stream PDF
         doc.on('error', (pdfErr) => {
@@ -412,25 +412,30 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
         // ── Bloques del contrato ──
         bloques.forEach((bloque) => {
             try {
+                if (doc.y > 650) doc.addPage();
+
                 if (bloque.tipo === 'texto_estatico') {
                     doc.fontSize(12).font('Helvetica').text(bloque.contenido || '', { align: 'left' });
                     doc.moveDown(0.5);
                 } else if (bloque.tipo === 'texto_dinamico' || bloque.tipo === 'valores_dinamicos') {
                     const valor = datos[bloque.variable] || `[${bloque.variable}]`;
-                    doc.fontSize(12).font('Helvetica-Bold').text(`${bloque.etiqueta || bloque.variable}: `, { continued: true });
+                    const labelStr = bloque.etiqueta || (bloque.variable ? bloque.variable.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) : '');
+                    doc.fontSize(12).font('Helvetica-Bold').text(`${labelStr}: `, { continued: true });
                     doc.font('Helvetica').text(String(valor));
                     doc.moveDown(0.5);
                 } else if (bloque.tipo === 'imagen') {
                     const imagenes = datos[bloque.variable];
                     if (imagenes) {
-                        doc.fontSize(12).font('Helvetica-Bold').text(`${bloque.etiqueta || bloque.variable}:`);
+                        const labelStr = bloque.etiqueta || (bloque.variable ? bloque.variable.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) : '');
+                        doc.fontSize(12).font('Helvetica-Bold').text(`${labelStr}:`);
                         doc.moveDown(0.3);
                         const urls = Array.isArray(imagenes) ? imagenes : [imagenes];
                         urls.forEach((imgUrl) => {
                             try {
+                                if (doc.y > 450) doc.addPage();
                                 const imgPath = path.join(__dirname, '..', imgUrl);
                                 if (fs.existsSync(imgPath)) {
-                                    doc.image(imgPath, { width: 200 });
+                                    doc.image(imgPath, { fit: [400, 300], align: 'center' });
                                     doc.moveDown(0.5);
                                 }
                             } catch (imgErr) {
@@ -464,12 +469,20 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
             );
         }
 
-        // ── Pie ──
-        doc.moveDown(3);
-        doc.fontSize(8).font('Helvetica').fillColor('#999999').text(
-            'Documento generado digitalmente. Este contrato tiene validez como registro de la visita técnica realizada.',
-            { align: 'center' }
-        );
+        // ── Pie con numeración ──
+        const range = doc.bufferedPageRange();
+        for (let i = range.start; i < range.start + range.count; i++) {
+            doc.switchToPage(i);
+            doc.fontSize(8).font('Helvetica').fillColor('#999999');
+            doc.text(
+                'Documento generado digitalmente. Este contrato tiene validez como registro de la visita técnica realizada.',
+                50, 780, { align: 'center', width: 495 }
+            );
+            doc.text(
+                `Página ${i + 1} de ${range.count}`,
+                50, 792, { align: 'center', width: 495 }
+            );
+        }
 
         doc.end();
     } catch (err) {

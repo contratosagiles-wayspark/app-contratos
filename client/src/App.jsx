@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
+import RecoverPasswordPage from './pages/RecoverPasswordPage';
 import RegisterPage from './pages/RegisterPage';
 import HomePage from './pages/HomePage';
 import TemplatePage from './pages/TemplatePage';
@@ -15,6 +16,7 @@ function App() {
         <BrowserRouter>
             <Routes>
                 <Route path="/" element={<LoginPage />} />
+                <Route path="/recover" element={<RecoverPasswordPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/home" element={<HomePage />} />
                 <Route path="/plantilla/nueva" element={<TemplatePage />} />
