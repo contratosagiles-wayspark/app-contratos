@@ -99,3 +99,12 @@ CREATE TABLE IF NOT EXISTS pagos (
   fecha               TIMESTAMP DEFAULT NOW(),
   payload_completo    JSONB
 );
+
+-- Backfill: copiar estructura_bloques de plantillas a contratos que no la tienen
+ALTER TABLE contratos ADD COLUMN IF NOT EXISTS estructura_bloques JSONB;
+
+UPDATE contratos c
+SET estructura_bloques = p.estructura_bloques
+FROM plantillas p
+WHERE c.id_plantilla = p.id_plantilla
+  AND c.estructura_bloques IS NULL;

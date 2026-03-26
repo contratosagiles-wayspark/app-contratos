@@ -3,11 +3,12 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../db/pool');
 const { validateBody } = require('../middleware/validate');
 const { registerSchema, loginSchema, passwordChangeSchema } = require('../validators/auth');
+const { loginLimiter, registerLimiter, passwordLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
 // ── POST /api/auth/register ─────────────────────────────────
-router.post('/register', validateBody(registerSchema), async (req, res) => {
+router.post('/register', registerLimiter, validateBody(registerSchema), async (req, res) => {
     const { email, contrasena } = req.body;
 
     try {
@@ -46,7 +47,7 @@ router.post('/register', validateBody(registerSchema), async (req, res) => {
 });
 
 // ── POST /api/auth/login ────────────────────────────────────
-router.post('/login', validateBody(loginSchema), async (req, res) => {
+router.post('/login', loginLimiter, validateBody(loginSchema), async (req, res) => {
     const { email, contrasena } = req.body;
 
     try {
@@ -121,7 +122,7 @@ router.get('/me', async (req, res) => {
 });
 
 // ── PUT /api/auth/password ──────────────────────────────────
-router.put('/password', validateBody(passwordChangeSchema), async (req, res) => {
+router.put('/password', passwordLimiter, validateBody(passwordChangeSchema), async (req, res) => {
     if (!req.session.userId) {
         return res.status(401).json({ error: 'No autenticado.' });
     }

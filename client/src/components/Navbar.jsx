@@ -20,7 +20,7 @@ function Navbar({ usuario }) {
 
     const handleNuevaPlantilla = () => {
         // Verificar límite freemium
-        if (usuario?.plan_actual === 'Gratuito' && usuario?.plantillas_creadas >= 1) {
+        if (usuario?.plan_actual === 'Gratuito' && usuario?.plantillas_creadas >= 2) {
             setShowUpgrade('plantillas');
             return;
         }

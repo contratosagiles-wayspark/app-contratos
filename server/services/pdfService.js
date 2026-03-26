@@ -109,6 +109,22 @@ function _renderDatosCliente(doc, contrato) {
 }
 
 function _renderBloques(doc, bloques, datos) {
+    if (!bloques || bloques.length === 0) {
+        if (datos && Object.keys(datos).length > 0) {
+            doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text('Datos ingresados:');
+            doc.moveDown(0.5);
+            for (const [key, value] of Object.entries(datos)) {
+                if (doc.y > 700) doc.addPage();
+                const strValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+                doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(`${key}: `, { continued: true });
+                doc.font('Helvetica').fillColor('#333333').text(strValue);
+                doc.moveDown(0.5);
+            }
+            doc.moveDown(1);
+        }
+        return;
+    }
+
     bloques.forEach((bloque) => {
         // Salto de página si queda poco espacio
         if (doc.y > 700) doc.addPage();
@@ -157,24 +173,55 @@ function _renderBloqueImagen(doc, bloque, datos) {
 }
 
 function _renderFirma(doc, firmaBase64, contrato) {
+    // Solo renderizar si hay firma con datos reales (no un placeholder corto)
     if (!firmaBase64 || firmaBase64.length < 200) return;
+
+    // Salto de página si queda poco espacio para firma + metadata
     if (doc.y > 550) doc.addPage();
+
     doc.moveDown(2);
+
+    // Línea separadora antes de la firma
+    doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#CCCCCC').lineWidth(0.5).stroke();
+    doc.moveDown(1);
+
     doc.fontSize(12).font('Helvetica-Bold').fillColor('#000000').text('Firma del cliente:');
     doc.moveDown(0.5);
+
     try {
+        // Extraer datos base64 puros (remover el prefijo data:image/png;base64,)
         const base64Data = firmaBase64.replace(/^data:image\/\w+;base64,/, '');
         const firmaBuffer = Buffer.from(base64Data, 'base64');
-        doc.image(firmaBuffer, { width: 200 });
-        doc.moveDown(0.5);
+
+        // Insertar la imagen de la firma real en el PDF
+        doc.image(firmaBuffer, doc.x, doc.y, {
+            width: 220,
+            height: 80,
+            fit: [220, 80],
+        });
+        doc.moveDown(5); // Espacio después de la imagen
+
+        // Nombre del firmante debajo de la firma
         if (contrato.cliente_nombre) {
-            doc.fontSize(10).font('Helvetica').text(sanitizeForPDF(contrato.cliente_nombre));
+            doc.fontSize(10).font('Helvetica').fillColor('#333333')
+               .text(sanitizeForPDF(contrato.cliente_nombre));
         }
-        const fechaFirma = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
-        doc.fontSize(9).font('Helvetica').fillColor('#666666').text(`Firmado el ${fechaFirma}`);
+
+        // Fecha de firma
+        const fechaFirma = new Date().toLocaleDateString('es-AR', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+        doc.fontSize(9).font('Helvetica').fillColor('#666666')
+           .text(`Firmado digitalmente el ${fechaFirma}`);
+
     } catch (firmaErr) {
         console.error('Error insertando firma en PDF:', firmaErr.message);
-        doc.fontSize(10).font('Helvetica').fillColor('#999999').text('[Error al procesar firma digital]');
+        doc.fontSize(10).font('Helvetica').fillColor('#CC0000')
+           .text('[Error al procesar la imagen de firma]');
     }
 }
 

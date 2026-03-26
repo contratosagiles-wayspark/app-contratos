@@ -13,6 +13,7 @@ const plantillasRoutes = require('./routes/plantillas');
 const uploadsRoutes = require('./routes/uploads');
 const suscripcionesRoutes = require('./routes/suscripciones');
 const adminRoutes = require('./routes/admin');
+const { apiLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -52,6 +53,7 @@ async function setupEmailTransporter() {
 }
 
 // ── Middlewares ──────────────────────────────────────────────
+app.set('trust proxy', 1);
 app.use(cors({
     origin: 'http://localhost:5173',
     credentials: true,
@@ -59,6 +61,8 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+app.use('/api', apiLimiter);
 
 // ── Sesiones con PostgreSQL ─────────────────────────────────
 app.use(session({

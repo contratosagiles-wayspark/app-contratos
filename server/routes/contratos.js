@@ -21,7 +21,7 @@ router.get('/', validateQuery(paginacionQuerySchema), async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT c.*, p.nombre_plantilla
+            `SELECT c.*, p.nombre_plantilla, COALESCE(c.estructura_bloques, p.estructura_bloques) AS estructura_bloques
        FROM contratos c
        LEFT JOIN plantillas p ON c.id_plantilla = p.id_plantilla
        WHERE c.id_usuario = $1
@@ -84,11 +84,22 @@ router.post('/', validateBody(crearContratoSchema), async (req, res) => {
             });
         }
 
+        // Obtener bloques de la plantilla
+        const plantillaResult = await pool.query(
+            'SELECT estructura_bloques FROM plantillas WHERE id_plantilla = $1 AND id_usuario = $2',
+            [id_plantilla, req.session.userId]
+        );
+
+        if (plantillaResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Plantilla no encontrada o no pertenece al usuario.' });
+        }
+        const bloquesCopia = JSON.stringify(plantillaResult.rows[0].estructura_bloques || []);
+
         const result = await pool.query(
-            `INSERT INTO contratos (id_usuario, id_plantilla, titulo_contrato, datos_ingresados, email_cliente)
-       VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO contratos (id_usuario, id_plantilla, titulo_contrato, datos_ingresados, email_cliente, estructura_bloques)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-            [req.session.userId, id_plantilla || null, titulo_contrato, JSON.stringify(datos_ingresados || {}), email_cliente || null]
+            [req.session.userId, id_plantilla || null, titulo_contrato, JSON.stringify(datos_ingresados || {}), email_cliente || null, bloquesCopia]
         );
 
         // Incrementar contador
@@ -108,7 +119,7 @@ router.post('/', validateBody(crearContratoSchema), async (req, res) => {
 router.get('/:id', validateParams(idContratoParamSchema), async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT c.*, p.nombre_plantilla, p.estructura_bloques
+            `SELECT c.*, p.nombre_plantilla, COALESCE(c.estructura_bloques, p.estructura_bloques) AS estructura_bloques
        FROM contratos c
        LEFT JOIN plantillas p ON c.id_plantilla = p.id_plantilla
        WHERE c.id_contrato = $1 AND c.id_usuario = $2`,
@@ -198,7 +209,7 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
     try {
         // Obtener contrato con datos de plantilla
         const contratoResult = await pool.query(
-            `SELECT c.*, p.nombre_plantilla, p.estructura_bloques
+            `SELECT c.*, p.nombre_plantilla, COALESCE(c.estructura_bloques, p.estructura_bloques) AS estructura_bloques
        FROM contratos c
        LEFT JOIN plantillas p ON c.id_plantilla = p.id_plantilla
        WHERE c.id_contrato = $1 AND c.id_usuario = $2`,
@@ -329,7 +340,7 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
 
     try {
         const contratoResult = await pool.query(
-            `SELECT c.*, p.nombre_plantilla, p.estructura_bloques
+            `SELECT c.*, p.nombre_plantilla, COALESCE(c.estructura_bloques, p.estructura_bloques) AS estructura_bloques
        FROM contratos c
        LEFT JOIN plantillas p ON c.id_plantilla = p.id_plantilla
        WHERE c.id_contrato = $1 AND c.id_usuario = $2`,
@@ -410,9 +421,22 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
         }
 
         // ── Bloques del contrato ──
-        bloques.forEach((bloque) => {
-            try {
-                if (bloque.tipo === 'texto_estatico') {
+        if (!bloques || bloques.length === 0) {
+            if (datos && Object.keys(datos).length > 0) {
+                doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text('Datos ingresados:');
+                doc.moveDown(0.5);
+                for (const [key, value] of Object.entries(datos)) {
+                    const strValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+                    doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(`${key}: `, { continued: true });
+                    doc.font('Helvetica').fillColor('#333333').text(strValue);
+                    doc.moveDown(0.5);
+                }
+                doc.moveDown(1);
+            }
+        } else {
+            bloques.forEach((bloque) => {
+                try {
+                    if (bloque.tipo === 'texto_estatico') {
                     doc.fontSize(12).font('Helvetica').text(bloque.contenido || '', { align: 'left' });
                     doc.moveDown(0.5);
                 } else if (bloque.tipo === 'texto_dinamico' || bloque.tipo === 'valores_dinamicos') {
@@ -448,20 +472,33 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
                 doc.moveDown(0.5);
             }
         });
+        }
 
         // ── Firma (si fue firmado) ──
         if (contrato.estado === 'Firmado' && contrato.firma_digital) {
             doc.moveDown(2);
+            doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#CCCCCC').lineWidth(0.5).stroke();
+            doc.moveDown(1);
             doc.fontSize(12).font('Helvetica-Bold').text('Firma del cliente:', { align: 'left' });
             doc.moveDown(0.5);
 
-            // firma_digital guardada como los primeros 100 chars + '...'
-            // Para la firma real necesitamos el base64 completo — por ahora mostramos un placeholder
-            doc.fontSize(10).font('Helvetica').text('[Firma digital registrada]');
-            doc.moveDown();
-            doc.fontSize(10).font('Helvetica').text(
-                `Fecha de firma: ${contrato.fecha_firma ? new Date(contrato.fecha_firma).toLocaleDateString('es-ES') : 'Registrada'}`
-            );
+            try {
+                const base64Data = contrato.firma_digital.replace(/^data:image\/\w+;base64,/, '');
+                const firmaBuffer = Buffer.from(base64Data, 'base64');
+                doc.image(firmaBuffer, doc.x, doc.y, { width: 220, fit: [220, 80] });
+                doc.moveDown(5);
+                if (contrato.cliente_nombre) {
+                    doc.fontSize(10).font('Helvetica').text(contrato.cliente_nombre);
+                }
+                doc.fontSize(9).font('Helvetica').fillColor('#666666').text(
+                    `Firmado digitalmente el ${contrato.fecha_firma
+                        ? new Date(contrato.fecha_firma).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })
+                        : 'fecha registrada'}`
+                );
+            } catch (firmaErr) {
+                console.error('Error renderizando firma en PDF on-demand:', firmaErr.message);
+                doc.fontSize(10).font('Helvetica').fillColor('#CC0000').text('[Error al procesar firma]');
+            }
         }
 
         // ── Pie ──
