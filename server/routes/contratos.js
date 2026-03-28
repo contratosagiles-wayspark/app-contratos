@@ -365,8 +365,8 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
             datos = {};
         }
 
-        // Crear documento PDF
-        doc = new PDFDocument({ margin: 50 });
+        // Crear documento PDF con soporte de páginas
+        doc = new PDFDocument({ margin: 50, bufferPages: true });
 
         // Manejar errores del stream PDF
         doc.on('error', (pdfErr) => {
@@ -421,40 +421,32 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
         }
 
         // ── Bloques del contrato ──
-        if (!bloques || bloques.length === 0) {
-            if (datos && Object.keys(datos).length > 0) {
-                doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text('Datos ingresados:');
-                doc.moveDown(0.5);
-                for (const [key, value] of Object.entries(datos)) {
-                    const strValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
-                    doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(`${key}: `, { continued: true });
-                    doc.font('Helvetica').fillColor('#333333').text(strValue);
-                    doc.moveDown(0.5);
-                }
-                doc.moveDown(1);
-            }
-        } else {
-            bloques.forEach((bloque) => {
-                try {
-                    if (bloque.tipo === 'texto_estatico') {
+        bloques.forEach((bloque) => {
+            try {
+                if (doc.y > 650) doc.addPage();
+
+                if (bloque.tipo === 'texto_estatico') {
                     doc.fontSize(12).font('Helvetica').text(bloque.contenido || '', { align: 'left' });
                     doc.moveDown(0.5);
                 } else if (bloque.tipo === 'texto_dinamico' || bloque.tipo === 'valores_dinamicos') {
                     const valor = datos[bloque.variable] || `[${bloque.variable}]`;
-                    doc.fontSize(12).font('Helvetica-Bold').text(`${bloque.etiqueta || bloque.variable}: `, { continued: true });
+                    const labelStr = bloque.etiqueta || (bloque.variable ? bloque.variable.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) : '');
+                    doc.fontSize(12).font('Helvetica-Bold').text(`${labelStr}: `, { continued: true });
                     doc.font('Helvetica').text(String(valor));
                     doc.moveDown(0.5);
                 } else if (bloque.tipo === 'imagen') {
                     const imagenes = datos[bloque.variable];
                     if (imagenes) {
-                        doc.fontSize(12).font('Helvetica-Bold').text(`${bloque.etiqueta || bloque.variable}:`);
+                        const labelStr = bloque.etiqueta || (bloque.variable ? bloque.variable.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) : '');
+                        doc.fontSize(12).font('Helvetica-Bold').text(`${labelStr}:`);
                         doc.moveDown(0.3);
                         const urls = Array.isArray(imagenes) ? imagenes : [imagenes];
                         urls.forEach((imgUrl) => {
                             try {
+                                if (doc.y > 450) doc.addPage();
                                 const imgPath = path.join(__dirname, '..', imgUrl);
                                 if (fs.existsSync(imgPath)) {
-                                    doc.image(imgPath, { width: 200 });
+                                    doc.image(imgPath, { fit: [400, 300], align: 'center' });
                                     doc.moveDown(0.5);
                                 }
                             } catch (imgErr) {
@@ -472,41 +464,36 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
                 doc.moveDown(0.5);
             }
         });
-        }
 
         // ── Firma (si fue firmado) ──
         if (contrato.estado === 'Firmado' && contrato.firma_digital) {
             doc.moveDown(2);
-            doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#CCCCCC').lineWidth(0.5).stroke();
-            doc.moveDown(1);
             doc.fontSize(12).font('Helvetica-Bold').text('Firma del cliente:', { align: 'left' });
             doc.moveDown(0.5);
 
-            try {
-                const base64Data = contrato.firma_digital.replace(/^data:image\/\w+;base64,/, '');
-                const firmaBuffer = Buffer.from(base64Data, 'base64');
-                doc.image(firmaBuffer, doc.x, doc.y, { width: 220, fit: [220, 80] });
-                doc.moveDown(5);
-                if (contrato.cliente_nombre) {
-                    doc.fontSize(10).font('Helvetica').text(contrato.cliente_nombre);
-                }
-                doc.fontSize(9).font('Helvetica').fillColor('#666666').text(
-                    `Firmado digitalmente el ${contrato.fecha_firma
-                        ? new Date(contrato.fecha_firma).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })
-                        : 'fecha registrada'}`
-                );
-            } catch (firmaErr) {
-                console.error('Error renderizando firma en PDF on-demand:', firmaErr.message);
-                doc.fontSize(10).font('Helvetica').fillColor('#CC0000').text('[Error al procesar firma]');
-            }
+            // firma_digital guardada como los primeros 100 chars + '...'
+            // Para la firma real necesitamos el base64 completo — por ahora mostramos un placeholder
+            doc.fontSize(10).font('Helvetica').text('[Firma digital registrada]');
+            doc.moveDown();
+            doc.fontSize(10).font('Helvetica').text(
+                `Fecha de firma: ${contrato.fecha_firma ? new Date(contrato.fecha_firma).toLocaleDateString('es-ES') : 'Registrada'}`
+            );
         }
 
-        // ── Pie ──
-        doc.moveDown(3);
-        doc.fontSize(8).font('Helvetica').fillColor('#999999').text(
-            'Documento generado digitalmente. Este contrato tiene validez como registro de la visita técnica realizada.',
-            { align: 'center' }
-        );
+        // ── Pie con numeración ──
+        const range = doc.bufferedPageRange();
+        for (let i = range.start; i < range.start + range.count; i++) {
+            doc.switchToPage(i);
+            doc.fontSize(8).font('Helvetica').fillColor('#999999');
+            doc.text(
+                'Documento generado digitalmente. Este contrato tiene validez como registro de la visita técnica realizada.',
+                50, 780, { align: 'center', width: 495 }
+            );
+            doc.text(
+                `Página ${i + 1} de ${range.count}`,
+                50, 792, { align: 'center', width: 495 }
+            );
+        }
 
         doc.end();
     } catch (err) {

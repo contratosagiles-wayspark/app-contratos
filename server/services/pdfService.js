@@ -136,8 +136,9 @@ function _renderBloques(doc, bloques, datos) {
             } else if (bloque.tipo === 'texto_dinamico' || bloque.tipo === 'valores_dinamicos') {
                 const valor = sanitizeForPDF(datos[bloque.variable]) || '[Sin completar]';
                 const colorValor = datos[bloque.variable] ? '#000000' : '#999999';
+                const labelStr = bloque.etiqueta || (bloque.variable ? bloque.variable.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) : '');
                 doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000')
-                   .text(`${bloque.etiqueta || bloque.variable}: `, { continued: true });
+                   .text(`${labelStr}: `, { continued: true });
                 doc.font('Helvetica').fillColor(colorValor).text(String(valor));
                 doc.moveDown(0.5);
             } else if (bloque.tipo === 'imagen') {
@@ -154,7 +155,8 @@ function _renderBloques(doc, bloques, datos) {
 function _renderBloqueImagen(doc, bloque, datos) {
     const imagenes = datos[bloque.variable];
     if (!imagenes) return;
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(`${bloque.etiqueta || bloque.variable}:`);
+    const labelStr = bloque.etiqueta || (bloque.variable ? bloque.variable.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) : '');
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(`${labelStr}:`);
     doc.moveDown(0.3);
     const urls = Array.isArray(imagenes) ? imagenes : [imagenes];
     urls.forEach((imgUrl) => {
