@@ -39,17 +39,27 @@ const bloqueSchema = z.discriminatedUnion('tipo', [
     bloqueImagen,
 ]);
 
+// ── Campos de branding (opcionales, para Pro y Empresa) ──
+const brandingFields = {
+    marca_agua: z.string().max(255).optional().nullable(),
+    logo_url: z.string().max(500).optional().nullable(),
+    logo_posicion: z.enum(['izquierda', 'centro', 'derecha']).optional().nullable(),
+    footer_texto: z.string().max(2000).optional().nullable(),
+};
+
 // ── Esquema para crear plantilla ──
 const crearPlantillaSchema = z.object({
     nombre_plantilla: z.string().trim().min(1, 'El nombre de la plantilla es obligatorio.').max(255),
     estructura_bloques: z.array(bloqueSchema).min(1, 'Debe incluir al menos un bloque.').max(50, 'Máximo 50 bloques permitidos.'),
+    ...brandingFields,
 });
 
 // ── Esquema para actualizar plantilla ──
 const actualizarPlantillaSchema = z.object({
     nombre_plantilla: z.string().trim().min(1).max(255).optional(),
     estructura_bloques: z.array(bloqueSchema).min(1).max(50).optional(),
-}).refine(data => data.nombre_plantilla || data.estructura_bloques, {
+    ...brandingFields,
+}).refine(data => data.nombre_plantilla || data.estructura_bloques || data.marca_agua !== undefined || data.logo_url !== undefined || data.logo_posicion !== undefined || data.footer_texto !== undefined, {
     message: 'Debe enviar al menos un campo para actualizar.',
 });
 

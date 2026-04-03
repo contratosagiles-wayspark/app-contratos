@@ -198,6 +198,163 @@
             }
         }
     }
+
+    // ── Branding Section (Pro & Empresa) ──
+    .branding-section {
+        @include card-style;
+        margin-top: $spacing-xl;
+        padding: $spacing-xl;
+        border: 2px solid transparent;
+        background: linear-gradient($bg-card, $bg-card) padding-box,
+                    linear-gradient(135deg, $accent-green, #1565C0) border-box;
+        animation: slideUp 0.4s ease;
+
+        .branding-section-header {
+            display: flex;
+            align-items: center;
+            gap: $spacing-sm;
+            margin-bottom: $spacing-xl;
+
+            .branding-icon {
+                font-size: $font-size-xl;
+            }
+
+            h2 {
+                font-size: $font-size-lg;
+                font-weight: 700;
+                color: $text-primary;
+                margin: 0;
+                background: linear-gradient(135deg, $accent-green, #1565C0);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+        }
+
+        .branding-error {
+            color: $error-color;
+            font-size: $font-size-sm;
+            font-weight: 500;
+            margin-bottom: $spacing-md;
+            padding: $spacing-sm $spacing-md;
+            background: $error-bg;
+            border-radius: $radius-sm;
+        }
+
+        .branding-field {
+            margin-bottom: $spacing-lg;
+
+            label {
+                display: block;
+                font-size: $font-size-sm;
+                font-weight: 600;
+                color: $text-secondary;
+                margin-bottom: $spacing-sm;
+            }
+
+            input[type="text"],
+            textarea {
+                @include input-base;
+                font-size: $font-size-sm;
+            }
+
+            textarea {
+                min-height: 60px;
+                resize: vertical;
+            }
+        }
+
+        .branding-file-input {
+            width: 100%;
+            padding: $spacing-md;
+            border: 2px dashed $border-color;
+            border-radius: $radius-md;
+            background: $bg-primary;
+            cursor: pointer;
+            font-family: $font-family;
+            font-size: $font-size-sm;
+            color: $text-secondary;
+            transition: all $transition-fast;
+
+            &:hover {
+                border-color: $accent-green;
+                background: $accent-green-light;
+            }
+
+            &::file-selector-button {
+                @include btn-base;
+                background: $accent-green;
+                color: white;
+                padding: $spacing-xs $spacing-md;
+                font-size: $font-size-xs;
+                margin-right: $spacing-md;
+                cursor: pointer;
+
+                &:hover {
+                    background: darken($accent-green, 5%);
+                }
+            }
+        }
+
+        .branding-uploading {
+            display: inline-block;
+            font-size: $font-size-xs;
+            color: $accent-green;
+            font-weight: 500;
+            margin-top: $spacing-xs;
+            animation: pulse 1.5s ease infinite;
+        }
+
+        .branding-logo-preview {
+            margin-bottom: $spacing-lg;
+            padding: $spacing-md;
+            background: $bg-primary;
+            border-radius: $radius-md;
+            border: 1.5px solid $border-color;
+            text-align: center;
+
+            img {
+                max-height: 60px;
+                object-fit: contain;
+                border-radius: $radius-sm;
+            }
+        }
+
+        .branding-position-group {
+            display: flex;
+            gap: $spacing-sm;
+
+            .branding-pos-btn {
+                @include btn-base;
+                flex: 1;
+                padding: $spacing-sm $spacing-md;
+                font-size: $font-size-xs;
+                font-weight: 600;
+                background: $bg-primary;
+                color: $text-secondary;
+                border: 1.5px solid $border-color;
+                transition: all $transition-fast;
+
+                &:hover {
+                    border-color: $accent-green;
+                    color: $accent-green;
+                    background: $accent-green-light;
+                }
+
+                &.active {
+                    background: $accent-green;
+                    color: white;
+                    border-color: $accent-green;
+                    box-shadow: 0 2px 8px rgba($accent-green, 0.3);
+                }
+            }
+        }
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
 }
 
 // ── Contract Form ─────────────────────────────────────────

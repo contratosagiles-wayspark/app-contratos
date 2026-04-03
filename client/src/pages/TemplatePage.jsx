@@ -10,14 +10,44 @@ function TemplatePage() {
     const [nombre, setNombre] = useState('');
     const [bloques, setBloques] = useState([]);
     const [saving, setSaving] = useState(false);
-    const [loading, setLoading] = useState(isEditing);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+
+    // Branding state
+    const [marcaAgua, setMarcaAgua] = useState('');
+    const [logoUrl, setLogoUrl] = useState('');
+    const [logoPosicion, setLogoPosicion] = useState('centro');
+    const [footerTexto, setFooterTexto] = useState('');
+    const [logoPreview, setLogoPreview] = useState(null);
+    const [uploadingLogo, setUploadingLogo] = useState(false);
+    const [brandingError, setBrandingError] = useState('');
+
+    // User plan
+    const [plan, setPlan] = useState(null);
+
+    useEffect(() => {
+        cargarUsuario();
+    }, []);
 
     useEffect(() => {
         if (isEditing) {
             cargarPlantilla();
+        } else {
+            setLoading(false);
         }
     }, [idPlantilla]);
+
+    const cargarUsuario = async () => {
+        try {
+            const res = await fetch('/api/auth/me', { credentials: 'include' });
+            if (res.ok) {
+                const data = await res.json();
+                setPlan(data.usuario.plan_actual);
+            }
+        } catch (err) {
+            // silently fail — plan defaults to null (no branding shown)
+        }
+    };
 
     const cargarPlantilla = async () => {
         try {
@@ -37,6 +67,15 @@ function TemplatePage() {
 
             // Assign IDs to loaded blocks for React keys
             setBloques(bloquesData.map((b, i) => ({ ...b, id: Date.now() + i })));
+
+            // Load branding fields
+            setMarcaAgua(plantilla.marca_agua || '');
+            setLogoUrl(plantilla.logo_url || '');
+            setLogoPosicion(plantilla.logo_posicion || 'centro');
+            setFooterTexto(plantilla.footer_texto || '');
+            if (plantilla.logo_url) {
+                setLogoPreview('/' + plantilla.logo_url);
+            }
         } catch (err) {
             setError('Error de conexión.');
         } finally {
@@ -69,6 +108,60 @@ function TemplatePage() {
         if (newIndex < 0 || newIndex >= newBloques.length) return;
         [newBloques[index], newBloques[newIndex]] = [newBloques[newIndex], newBloques[index]];
         setBloques(newBloques);
+    };
+
+    // ── Logo upload handler ──
+    const handleLogoChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setBrandingError('');
+
+        // Client-side validation
+        const allowedTypes = ['image/png', 'image/jpeg'];
+        if (!allowedTypes.includes(file.type)) {
+            setBrandingError('Solo se permiten archivos PNG o JPG.');
+            e.target.value = '';
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            setBrandingError('El archivo no puede superar 2MB.');
+            e.target.value = '';
+            return;
+        }
+
+        // Generate local preview
+        const reader = new FileReader();
+        reader.onload = (ev) => setLogoPreview(ev.target.result);
+        reader.readAsDataURL(file);
+
+        // Upload to server
+        setUploadingLogo(true);
+        try {
+            const formData = new FormData();
+            formData.append('logo', file);
+
+            const res = await fetch('/api/plantillas/upload-logo', {
+                method: 'POST',
+                credentials: 'include',
+                body: formData,
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setBrandingError(data.mensaje || 'Error al subir el logo.');
+                setLogoPreview(null);
+                return;
+            }
+
+            setLogoUrl(data.logo_url);
+        } catch (err) {
+            setBrandingError('Error de conexión al subir el logo.');
+            setLogoPreview(null);
+        } finally {
+            setUploadingLogo(false);
+        }
     };
 
     const guardar = async () => {
@@ -115,14 +208,25 @@ function TemplatePage() {
                 return rest;
             });
 
+            const body = {
+                nombre_plantilla: nombre,
+                estructura_bloques: sanitizedBloques,
+            };
+
+            // Include branding fields only for premium users
+            const esPremium = plan === 'Pro' || plan === 'Empresa';
+            if (esPremium) {
+                body.marca_agua = marcaAgua || null;
+                body.logo_url = logoUrl || null;
+                body.logo_posicion = logoPosicion || null;
+                body.footer_texto = footerTexto || null;
+            }
+
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({
-                    nombre_plantilla: nombre,
-                    estructura_bloques: sanitizedBloques,
-                }),
+                body: JSON.stringify(body),
             });
 
             const data = await res.json();
@@ -150,6 +254,8 @@ function TemplatePage() {
         valores_dinamicos: '🔢 Valores Dinámicos',
         imagen: '🖼️ Imagen',
     };
+
+    const esPremium = plan === 'Pro' || plan === 'Empresa';
 
     if (loading) {
         return (
@@ -292,6 +398,85 @@ function TemplatePage() {
                     Imagen
                 </button>
             </div>
+
+            {/* ── Branding Section (Solo Pro y Empresa) ── */}
+            {esPremium && (
+                <div className="branding-section">
+                    <div className="branding-section-header">
+                        <span className="branding-icon">🎨</span>
+                        <h2>Personalización de marca</h2>
+                    </div>
+
+                    {brandingError && (
+                        <p className="branding-error">{brandingError}</p>
+                    )}
+
+                    {/* Logo upload */}
+                    <div className="branding-field">
+                        <label htmlFor="branding-logo-input">Logo de la empresa (PNG o JPG, máx. 2MB)</label>
+                        <input
+                            id="branding-logo-input"
+                            type="file"
+                            accept="image/png,image/jpeg"
+                            onChange={handleLogoChange}
+                            className="branding-file-input"
+                        />
+                        {uploadingLogo && <span className="branding-uploading">Subiendo logo...</span>}
+                    </div>
+
+                    {/* Logo preview */}
+                    {logoPreview && (
+                        <div className="branding-logo-preview">
+                            <img src={logoPreview} alt="Preview del logo" />
+                        </div>
+                    )}
+
+                    {/* Logo position */}
+                    <div className="branding-field">
+                        <label>Posición del logo</label>
+                        <div className="branding-position-group">
+                            {['izquierda', 'centro', 'derecha'].map((pos) => (
+                                <button
+                                    key={pos}
+                                    type="button"
+                                    className={`branding-pos-btn ${logoPosicion === pos ? 'active' : ''}`}
+                                    onClick={() => setLogoPosicion(pos)}
+                                >
+                                    {pos === 'izquierda' && '⬅️ Izquierda'}
+                                    {pos === 'centro' && '↔️ Centro'}
+                                    {pos === 'derecha' && '➡️ Derecha'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Marca de agua */}
+                    <div className="branding-field">
+                        <label htmlFor="branding-watermark">Texto de marca de agua (opcional)</label>
+                        <input
+                            id="branding-watermark"
+                            type="text"
+                            placeholder="Ej: CONFIDENCIAL"
+                            value={marcaAgua}
+                            onChange={(e) => setMarcaAgua(e.target.value)}
+                            maxLength={255}
+                        />
+                    </div>
+
+                    {/* Footer */}
+                    <div className="branding-field">
+                        <label htmlFor="branding-footer">Pie de página (opcional)</label>
+                        <textarea
+                            id="branding-footer"
+                            placeholder="Ej: Documento generado por App Contratos"
+                            value={footerTexto}
+                            onChange={(e) => setFooterTexto(e.target.value)}
+                            rows={2}
+                            maxLength={2000}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

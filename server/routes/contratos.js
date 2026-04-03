@@ -85,22 +85,24 @@ router.post('/', validateBody(crearContratoSchema), async (req, res) => {
             });
         }
 
-        // Obtener bloques de la plantilla
+        // Obtener bloques y branding de la plantilla (snapshot)
         const plantillaResult = await pool.query(
-            'SELECT estructura_bloques FROM plantillas WHERE id_plantilla = $1 AND id_usuario = $2',
+            'SELECT estructura_bloques, marca_agua, logo_url, logo_posicion, footer_texto FROM plantillas WHERE id_plantilla = $1 AND id_usuario = $2',
             [id_plantilla, req.session.userId]
         );
 
         if (plantillaResult.rows.length === 0) {
             return res.status(404).json({ error: 'Plantilla no encontrada o no pertenece al usuario.' });
         }
-        const bloquesCopia = JSON.stringify(plantillaResult.rows[0].estructura_bloques || []);
+        const plantilla = plantillaResult.rows[0];
+        const bloquesCopia = JSON.stringify(plantilla.estructura_bloques || []);
 
         const result = await pool.query(
-            `INSERT INTO contratos (id_usuario, id_plantilla, titulo_contrato, datos_ingresados, email_cliente, estructura_bloques)
-       VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO contratos (id_usuario, id_plantilla, titulo_contrato, datos_ingresados, email_cliente, estructura_bloques, marca_agua, logo_url, logo_posicion, footer_texto)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
-            [req.session.userId, id_plantilla || null, titulo_contrato, JSON.stringify(datos_ingresados || {}), email_cliente || null, bloquesCopia]
+            [req.session.userId, id_plantilla || null, titulo_contrato, JSON.stringify(datos_ingresados || {}), email_cliente || null, bloquesCopia,
+             plantilla.marca_agua || null, plantilla.logo_url || null, plantilla.logo_posicion || null, plantilla.footer_texto || null]
         );
 
         // Incrementar contador
@@ -270,6 +272,10 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
                 firmaBase64: firma_base64,
                 nombreEmpresa: empresa.nombre_empresa,
                 logoUrl: empresa.logo_url,
+                marcaAgua: contrato.marca_agua || null,
+                brandingLogoUrl: contrato.logo_url || null,
+                logoPosicion: contrato.logo_posicion || null,
+                footerTexto: contrato.footer_texto || null,
             });
 
             const pdfKey = `contratos/contrato_${contrato.id_contrato}_${Date.now()}.pdf`;
@@ -396,6 +402,27 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
 
         doc.pipe(res);
 
+        // ── Logo de branding en encabezado ──
+        if (contrato.logo_url) {
+            try {
+                const brandingLogoPath = path.join(__dirname, '..', contrato.logo_url);
+                if (fs.existsSync(brandingLogoPath)) {
+                    const pgWidth = doc.page.width;
+                    const logoW = 80;
+                    let logoX;
+                    switch (contrato.logo_posicion) {
+                        case 'izquierda': logoX = 40; break;
+                        case 'derecha': logoX = pgWidth - 120; break;
+                        case 'centro': default: logoX = (pgWidth / 2) - 40; break;
+                    }
+                    doc.image(brandingLogoPath, logoX, 20, { width: logoW });
+                    doc.y = Math.max(doc.y, 90);
+                }
+            } catch (logoErr) {
+                logger.warn('Logo de branding no insertado en PDF on-demand: ' + logoErr.message);
+            }
+        }
+
         // ── Título ──
         doc.fontSize(20).font('Helvetica-Bold').text(contrato.titulo_contrato || 'Contrato', { align: 'center' });
         doc.moveDown();
@@ -493,16 +520,50 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
             );
         }
 
+        // ── Marca de agua en todas las páginas ──
+        if (contrato.marca_agua) {
+            const wRange = doc.bufferedPageRange();
+            for (let i = wRange.start; i < wRange.start + wRange.count; i++) {
+                doc.switchToPage(i);
+                const pgW = doc.page.width;
+                const pgH = doc.page.height;
+                const cX = pgW / 2;
+                const cY = pgH / 2;
+                const origBM = doc.page.margins.bottom;
+                doc.page.margins.bottom = 0;
+                doc.save();
+                doc.opacity(0.08);
+                doc.translate(cX, cY);
+                doc.rotate(45, { origin: [0, 0] });
+                doc.fontSize(60).font('Helvetica-Bold').fillColor('#000000');
+                doc.text(contrato.marca_agua, -200, -30, { width: 400, align: 'center' });
+                doc.restore();
+                doc.page.margins.bottom = origBM;
+            }
+        }
+
         // ── Pie con numeración ──
         const range = doc.bufferedPageRange();
         for (let i = range.start; i < range.start + range.count; i++) {
             doc.switchToPage(i);
-            doc.fontSize(8).font('Helvetica').fillColor('#999999');
             
             // Desactivar temporalmente el margen inferior
             const originalBottomMargin = doc.page.margins.bottom;
             doc.page.margins.bottom = 0;
 
+            // Footer personalizado de branding
+            if (contrato.footer_texto) {
+                const pgHeight = doc.page.height;
+                const pgWidth = doc.page.width;
+                doc.fontSize(9).font('Helvetica').fillColor('#666666');
+                doc.text(
+                    contrato.footer_texto,
+                    40, pgHeight - 40,
+                    { align: 'center', width: pgWidth - 80 }
+                );
+            }
+
+            doc.fontSize(8).font('Helvetica').fillColor('#999999');
             doc.text(
                 'Documento generado digitalmente. Este contrato tiene validez como registro de la visita técnica realizada.',
                 50, 780, { align: 'center', width: 495 }

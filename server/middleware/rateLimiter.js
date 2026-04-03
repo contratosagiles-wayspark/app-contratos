@@ -12,6 +12,7 @@ const loginLimiter = rateLimit({
     keyGenerator: (req) => {
         return req.ip + ':' + (req.body?.email || 'unknown');
     },
+    validate: { ipAddress: false },
 });
 
 // Limiter para registro: 5 cuentas por IP cada hora

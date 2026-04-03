@@ -12,10 +12,14 @@ const logger = require('../config/logger');
  * @param {Object} opciones.datos - Objeto de datos_ingresados parseado
  * @param {string|null} opciones.firmaBase64 - String base64 completo de la firma PNG
  * @param {string|null} opciones.nombreEmpresa - Nombre de la empresa del usuario
- * @param {string|null} opciones.logoUrl - Path relativo al logo (ej: /uploads/logos/logo.png)
+ * @param {string|null} opciones.logoUrl - Path relativo al logo del usuario (ej: uploads/logos/logo.png)
+ * @param {string|null} opciones.marcaAgua - Texto de marca de agua diagonal
+ * @param {string|null} opciones.brandingLogoUrl - Path relativo al logo de la plantilla/contrato
+ * @param {string|null} opciones.logoPosicion - Posición del logo: izquierda, centro, derecha
+ * @param {string|null} opciones.footerTexto - Texto de pie de página personalizado
  * @returns {Promise<Buffer>} Buffer del PDF generado
  */
-async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBase64 = null, nombreEmpresa = null, logoUrl = null }) {
+async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBase64 = null, nombreEmpresa = null, logoUrl = null, marcaAgua = null, brandingLogoUrl = null, logoPosicion = null, footerTexto = null }) {
     if (!datos) datos = {};
     if (!bloques) bloques = [];
 
@@ -28,6 +32,9 @@ async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBas
         doc.on('error', reject);
 
         try {
+            // ── Logo de branding en encabezado ──
+            _renderBrandingLogo(doc, { brandingLogoUrl, logoPosicion });
+
             // ── Encabezado ──
             _renderEncabezado(doc, { nombreEmpresa, logoUrl });
 
@@ -60,8 +67,13 @@ async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBas
             // ── Firma digital ──
             _renderFirma(doc, firmaBase64, contrato);
 
+            // ── Marca de agua en todas las páginas ──
+            if (marcaAgua) {
+                _renderMarcaAgua(doc, marcaAgua);
+            }
+
             // ── Pie de página en todas las páginas ──
-            _renderPiesPagina(doc, nombreEmpresa);
+            _renderPiesPagina(doc, nombreEmpresa, footerTexto);
 
             doc.end();
         } catch (err) {
@@ -73,8 +85,45 @@ async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBas
     return pdfBuffer;
 }
 
-// Las funciones auxiliares _render* se definen a continuación en los siguientes pasos.
-// PLACEHOLDER — serán reemplazadas.
+/**
+ * Renderiza el logo de branding de la plantilla en el encabezado.
+ */
+function _renderBrandingLogo(doc, { brandingLogoUrl, logoPosicion }) {
+    if (!brandingLogoUrl) return;
+
+    try {
+        const logoPath = path.join(__dirname, '..', brandingLogoUrl);
+        if (!fs.existsSync(logoPath)) {
+            logger.warn('Logo de branding no encontrado: ' + logoPath);
+            return;
+        }
+
+        const pageWidth = doc.page.width;
+        const logoWidth = 80;
+        const yPos = 20;
+        let xPos;
+
+        switch (logoPosicion) {
+            case 'izquierda':
+                xPos = 40;
+                break;
+            case 'derecha':
+                xPos = pageWidth - 120;
+                break;
+            case 'centro':
+            default:
+                xPos = (pageWidth / 2) - 40;
+                break;
+        }
+
+        doc.image(logoPath, xPos, yPos, { width: logoWidth });
+
+        // Mover el cursor Y debajo del logo para evitar superposición
+        doc.y = Math.max(doc.y, yPos + 70);
+    } catch (e) {
+        logger.warn('Error insertando logo de branding: ' + e.message, { error: e });
+    }
+}
 
 function _renderEncabezado(doc, { nombreEmpresa, logoUrl }) {
     const titulo = sanitizeForPDF(nombreEmpresa) || 'Informe de Visita Técnica';
@@ -228,18 +277,64 @@ function _renderFirma(doc, firmaBase64, contrato) {
     }
 }
 
-function _renderPiesPagina(doc, nombreEmpresa) {
+/**
+ * Aplica marca de agua diagonal semitransparente en todas las páginas.
+ */
+function _renderMarcaAgua(doc, texto) {
+    const range = doc.bufferedPageRange();
+    for (let i = range.start; i < range.start + range.count; i++) {
+        doc.switchToPage(i);
+
+        const pageWidth = doc.page.width;
+        const pageHeight = doc.page.height;
+        const centerX = pageWidth / 2;
+        const centerY = pageHeight / 2;
+
+        // Desactivar margen inferior temporalmente
+        const originalBottomMargin = doc.page.margins.bottom;
+        doc.page.margins.bottom = 0;
+
+        doc.save();
+        doc.opacity(0.08);
+        doc.translate(centerX, centerY);
+        doc.rotate(45, { origin: [0, 0] });
+        doc.fontSize(60).font('Helvetica-Bold').fillColor('#000000');
+        doc.text(texto, -200, -30, {
+            width: 400,
+            align: 'center',
+        });
+        doc.restore();
+
+        // Restaurar margen inferior
+        doc.page.margins.bottom = originalBottomMargin;
+    }
+}
+
+function _renderPiesPagina(doc, nombreEmpresa, footerTexto) {
     const range = doc.bufferedPageRange();
     const totalPages = range.count;
     for (let i = range.start; i < range.start + totalPages; i++) {
         doc.switchToPage(i);
-        doc.fontSize(7).font('Helvetica').fillColor('#AAAAAA');
-        const empresa = nombreEmpresa || 'Gestión de Contratos';
 
         // Desactivar temporalmente el margen inferior para evitar saltos de página automáticos
         const originalBottomMargin = doc.page.margins.bottom;
         doc.page.margins.bottom = 0;
 
+        // Footer personalizado de branding (si existe)
+        if (footerTexto) {
+            const pageHeight = doc.page.height;
+            const pageWidth = doc.page.width;
+            doc.fontSize(9).font('Helvetica').fillColor('#666666');
+            doc.text(
+                footerTexto,
+                40, pageHeight - 40,
+                { align: 'center', width: pageWidth - 80 }
+            );
+        }
+
+        // Footer estándar del sistema
+        const empresa = nombreEmpresa || 'Gestión de Contratos';
+        doc.fontSize(7).font('Helvetica').fillColor('#AAAAAA');
         doc.text(
             `Documento generado digitalmente — ${empresa}`,
             50, 780, { align: 'center', width: 495 }
