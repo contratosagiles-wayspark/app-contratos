@@ -4,6 +4,7 @@
   "description": "Aplicación web para gestión de contratos de servicios",
   "private": true,
   "scripts": {
+    "start": "node server/server.js",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "node server/server.js",
     "client": "npm run dev --prefix client",
