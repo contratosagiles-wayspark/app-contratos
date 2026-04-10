@@ -37,15 +37,16 @@ function isTwilioConfigured() {
 
 /**
  * Normaliza un número de teléfono argentino al formato WhatsApp.
- * Si no tiene código de país, asume Argentina (+54).
+ * Los móviles argentinos en WhatsApp requieren +549XXXXXXXXXX (el 9 es obligatorio).
  * @param {string} numero - Número en cualquier formato
- * @returns {string} Número en formato whatsapp:+54XXXXXXXXXX
+ * @returns {string} Número en formato whatsapp:+549XXXXXXXXXX
  */
 function normalizarNumero(numero) {
     const limpio = numero.replace(/[\s\-\+\(\)]/g, '');
-    if (limpio.startsWith('54')) return `whatsapp:+${limpio}`;
-    if (limpio.startsWith('0')) return `whatsapp:+54${limpio.slice(1)}`;
-    return `whatsapp:+54${limpio}`;
+    if (limpio.startsWith('549')) return `whatsapp:+${limpio}`;
+    if (limpio.startsWith('54')) return `whatsapp:+549${limpio.slice(2)}`;
+    if (limpio.startsWith('0')) return `whatsapp:+549${limpio.slice(1)}`;
+    return `whatsapp:+549${limpio}`;
 }
 
 /**
