@@ -317,6 +317,9 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
         if (numeroLimpio && pdfUrl) {
             try {
                 const { enviarPDFporWhatsApp, isTwilioConfigured } = require('../services/whatsappService');
+                logger.info('WhatsApp debug: numeroLimpio=' + numeroLimpio);
+                logger.info('WhatsApp debug: pdfUrl=' + pdfUrl);
+                logger.info('WhatsApp debug: Twilio configurado=' + isTwilioConfigured());
                 if (isTwilioConfigured()) {
                     enviarPDFporWhatsApp({
                         numeroCliente: numeroLimpio,
