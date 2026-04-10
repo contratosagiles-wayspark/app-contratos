@@ -344,12 +344,6 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
 // Genera PDF on-demand. Query: ?modo=preview (inline) | ?modo=download (attachment)
 router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQuerySchema), async (req, res) => {
     const { modo } = req.query;
-    const PDFDocument = require('pdfkit');
-    const fs = require('fs');
-    const path = require('path');
-
-    let doc = null;
-    let headersSent = false;
 
     try {
         const contratoResult = await pool.query(
@@ -366,7 +360,7 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
 
         const contrato = contratoResult.rows[0];
 
-        // Preparar datos antes de iniciar el stream
+        // Preparar datos
         const bloques = contrato.estructura_bloques || [];
         let datos = {};
         try {
@@ -378,25 +372,28 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
             datos = {};
         }
 
-        // Crear documento PDF con soporte de páginas
-        doc = new PDFDocument({ margin: 50, bufferPages: true });
+        // Obtener datos de empresa del usuario
+        const userInfo = await pool.query(
+            'SELECT nombre_empresa, logo_url FROM usuarios WHERE id_usuario = $1',
+            [req.session.userId]
+        );
+        const empresa = userInfo.rows[0] || {};
 
-        // Manejar errores del stream PDF
-        doc.on('error', (pdfErr) => {
-            logger.error('Error en stream PDFKit: ' + pdfErr.message, { error: pdfErr });
-            if (!res.writableEnded) {
-                res.end();
-            }
+        // Generar PDF usando el servicio centralizado (soporta imágenes de R2)
+        const pdfBuffer = await generarPDFContrato({
+            contrato,
+            bloques,
+            datos,
+            firmaBase64: contrato.firma_digital || null,
+            nombreEmpresa: empresa.nombre_empresa || null,
+            logoUrl: empresa.logo_url || null,
+            marcaAgua: contrato.marca_agua || null,
+            brandingLogoUrl: contrato.logo_url || null,
+            logoPosicion: contrato.logo_posicion || null,
+            footerTexto: contrato.footer_texto || null,
         });
 
-        // Limpiar si el cliente cierra la conexión
-        res.on('close', () => {
-            if (doc && !doc.writableEnded) {
-                doc.end();
-            }
-        });
-
-        // Ahora sí enviar headers y pipear
+        // Configurar headers y enviar el buffer
         const filename = `contrato_${contrato.id_contrato}.pdf`;
         res.setHeader('Content-Type', 'application/pdf');
         if (modo === 'download') {
@@ -404,199 +401,11 @@ router.get('/:id/pdf', validateParams(idContratoParamSchema), validateQuery(pdfQ
         } else {
             res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
         }
-        headersSent = true;
 
-        doc.pipe(res);
-
-        // ── Logo de branding en encabezado ──
-        if (contrato.logo_url) {
-            try {
-                const brandingLogoPath = path.join(__dirname, '..', contrato.logo_url);
-                if (fs.existsSync(brandingLogoPath)) {
-                    const pgWidth = doc.page.width;
-                    const logoW = 80;
-                    let logoX;
-                    switch (contrato.logo_posicion) {
-                        case 'izquierda': logoX = 40; break;
-                        case 'derecha': logoX = pgWidth - 120; break;
-                        case 'centro': default: logoX = (pgWidth / 2) - 40; break;
-                    }
-                    doc.image(brandingLogoPath, logoX, 20, { width: logoW });
-                    doc.y = Math.max(doc.y, 90);
-                }
-            } catch (logoErr) {
-                logger.warn('Logo de branding no insertado en PDF on-demand: ' + logoErr.message);
-            }
-        }
-
-        // ── Título ──
-        doc.fontSize(20).font('Helvetica-Bold').text(contrato.titulo_contrato || 'Contrato', { align: 'center' });
-        doc.moveDown();
-        doc.fontSize(10).font('Helvetica').text(
-            `Fecha: ${new Date(contrato.fecha_creacion).toLocaleDateString('es-ES')}`,
-            { align: 'right' }
-        );
-        doc.moveDown(2);
-
-        // ── Datos del cliente (si fue firmado) ──
-        if (contrato.estado === 'Firmado') {
-            doc.fontSize(11).font('Helvetica-Bold').text('Datos del cliente:');
-            doc.moveDown(0.3);
-            if (contrato.cliente_nombre) {
-                doc.fontSize(10).font('Helvetica').text(`Nombre: ${contrato.cliente_nombre}`);
-            }
-            if (contrato.cliente_numero) {
-                doc.fontSize(10).font('Helvetica').text(`Teléfono: ${contrato.cliente_numero}`);
-            }
-            if (contrato.email_cliente) {
-                doc.fontSize(10).font('Helvetica').text(`Email: ${contrato.email_cliente}`);
-            }
-            doc.moveDown(1.5);
-        }
-
-        // ── Bloques del contrato ──
-        bloques.forEach((bloque) => {
-            try {
-                if (doc.y > 650) doc.addPage();
-
-                if (bloque.tipo === 'texto_estatico') {
-                    doc.fontSize(12).font('Helvetica').text(bloque.contenido || '', { align: 'left' });
-                    doc.moveDown(0.5);
-                } else if (bloque.tipo === 'texto_dinamico' || bloque.tipo === 'valores_dinamicos') {
-                    const valor = datos[bloque.variable] || `[${bloque.variable}]`;
-                    const labelStr = bloque.etiqueta || (bloque.variable ? bloque.variable.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) : '');
-                    doc.fontSize(12).font('Helvetica-Bold').text(`${labelStr}: `, { continued: true });
-                    doc.font('Helvetica').text(String(valor));
-                    doc.moveDown(0.5);
-                } else if (bloque.tipo === 'imagen') {
-                    const imagenes = datos[bloque.variable];
-                    if (imagenes) {
-                        const labelStr = bloque.etiqueta || (bloque.variable ? bloque.variable.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) : '');
-                        doc.fontSize(12).font('Helvetica-Bold').text(`${labelStr}:`);
-                        doc.moveDown(0.3);
-                        const urls = Array.isArray(imagenes) ? imagenes : [imagenes];
-                        urls.forEach((imgUrl) => {
-                            try {
-                                if (doc.y > 450) doc.addPage();
-                                const imgPath = path.join(__dirname, '..', imgUrl);
-                                if (fs.existsSync(imgPath)) {
-                                    doc.image(imgPath, { fit: [400, 300], align: 'center' });
-                                    doc.moveDown(0.5);
-                                }
-                            } catch (imgErr) {
-                                logger.warn('No se pudo insertar imagen en PDF: ' + imgErr.message, { error: imgErr });
-                            }
-                        });
-                        doc.moveDown(0.5);
-                    }
-                }
-            } catch (bloqueErr) {
-                logger.warn('Error renderizando bloque en PDF: ' + bloqueErr.message, { error: bloqueErr });
-                doc.fontSize(10).font('Helvetica').fillColor('#cc0000')
-                    .text('[Error al renderizar este bloque]')
-                    .fillColor('#000000');
-                doc.moveDown(0.5);
-            }
-        });
-
-        // ── Firma (si fue firmado) ──
-        if (contrato.estado === 'Firmado' && contrato.firma_digital && contrato.firma_digital.length > 100) {
-            doc.moveDown(2);
-            doc.fontSize(12).font('Helvetica-Bold').text('Firma del cliente:', { align: 'left' });
-            doc.moveDown(0.5);
-
-            try {
-                const base64Data = contrato.firma_digital.replace(/^data:image\/\w+;base64,/, '');
-                const firmaBuffer = Buffer.from(base64Data, 'base64');
-                
-                doc.image(firmaBuffer, {
-                    width: 400,
-                    height: 150,
-                    fit: [400, 150],
-                });
-                doc.moveDown(1); // Espacio suficiente debajo de la imagen
-            } catch (err) {
-                logger.error('Error procesando imagen de firma para PDF: ' + err.message, { error: err });
-                doc.fontSize(10).font('Helvetica').text('[Error al mostrar la firma]');
-                doc.moveDown(1.5);
-            }
-
-            doc.fontSize(10).font('Helvetica').text(
-                `Fecha de firma: ${contrato.fecha_creacion ? new Date(contrato.fecha_creacion).toLocaleDateString('es-ES') : 'Registrada'}`
-            );
-        }
-
-        // ── Marca de agua en todas las páginas ──
-        if (contrato.marca_agua) {
-            const wRange = doc.bufferedPageRange();
-            for (let i = wRange.start; i < wRange.start + wRange.count; i++) {
-                doc.switchToPage(i);
-                const pgW = doc.page.width;
-                const pgH = doc.page.height;
-                const cX = pgW / 2;
-                const cY = pgH / 2;
-                const origBM = doc.page.margins.bottom;
-                doc.page.margins.bottom = 0;
-                doc.save();
-                doc.opacity(0.08);
-                doc.translate(cX, cY);
-                doc.rotate(45, { origin: [0, 0] });
-                doc.fontSize(60).font('Helvetica-Bold').fillColor('#000000');
-                doc.text(contrato.marca_agua, -200, -30, { width: 400, align: 'center' });
-                doc.restore();
-                doc.page.margins.bottom = origBM;
-            }
-        }
-
-        // ── Pie con numeración ──
-        const range = doc.bufferedPageRange();
-        for (let i = range.start; i < range.start + range.count; i++) {
-            doc.switchToPage(i);
-            
-            // Desactivar temporalmente el margen inferior
-            const originalBottomMargin = doc.page.margins.bottom;
-            doc.page.margins.bottom = 0;
-
-            // Footer personalizado de branding
-            if (contrato.footer_texto) {
-                const pgHeight = doc.page.height;
-                const pgWidth = doc.page.width;
-                doc.fontSize(9).font('Helvetica').fillColor('#666666');
-                doc.text(
-                    contrato.footer_texto,
-                    40, pgHeight - 40,
-                    { align: 'center', width: pgWidth - 80 }
-                );
-            }
-
-            doc.fontSize(8).font('Helvetica').fillColor('#999999');
-            doc.text(
-                'Documento generado digitalmente. Este contrato tiene validez como registro de la visita técnica realizada.',
-                50, 780, { align: 'center', width: 495 }
-            );
-            doc.text(
-                `Página ${i + 1} de ${range.count}`,
-                50, 792, { align: 'center', width: 495 }
-            );
-            
-            // Restaurar el margen inferior
-            doc.page.margins.bottom = originalBottomMargin;
-        }
-
-        doc.end();
+        res.send(pdfBuffer);
     } catch (err) {
         logger.error('Error en GET /contratos/:id/pdf: ' + err.message, { error: err });
-        // Solo enviar JSON de error si los headers de PDF no fueron enviados aún
-        if (!headersSent) {
-            return res.status(500).json({ error: 'Error generando PDF.' });
-        }
-        // Si ya estábamos streameando el PDF, intentar cerrar limpiamente
-        if (doc && !doc.writableEnded) {
-            doc.end();
-        }
-        if (!res.writableEnded) {
-            res.end();
-        }
+        res.status(500).json({ error: 'Error generando PDF.' });
     }
 });
 
