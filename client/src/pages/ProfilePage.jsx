@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { validatePassword } from '../utils/passwordValidation';
 import '../styles/components/_pages.scss';
 
 function ProfilePage() {
@@ -79,8 +80,9 @@ function ProfilePage() {
             setPasswordErr('Las contraseñas nuevas no coinciden.');
             return;
         }
-        if (contrasenaNueva.length < 6) {
-            setPasswordErr('La nueva contraseña debe tener al menos 6 caracteres.');
+        const pwResult = validatePassword(contrasenaNueva);
+        if (!pwResult.valid) {
+            setPasswordErr(pwResult.errors[0]);
             return;
         }
 

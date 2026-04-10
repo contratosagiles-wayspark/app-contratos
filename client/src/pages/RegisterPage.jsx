@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { validatePassword } from '../utils/passwordValidation';
 import '../styles/components/_login.scss';
 
 function RegisterPage() {
@@ -19,8 +20,9 @@ function RegisterPage() {
             return;
         }
 
-        if (contrasena.length < 6) {
-            setError('La contraseña debe tener al menos 6 caracteres.');
+        const pwResult = validatePassword(contrasena);
+        if (!pwResult.valid) {
+            setError(pwResult.errors[0]);
             return;
         }
 

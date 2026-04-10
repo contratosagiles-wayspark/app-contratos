@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { validatePassword } from '../utils/passwordValidation';
 import '../styles/components/_login.scss'; // Reutilizamos estilos
 
 function RecoverPasswordPage() {
@@ -83,6 +84,12 @@ function RecoverPasswordPage() {
         
         if (newPassword !== confirmPassword) {
             setError('Las contraseñas no coinciden.');
+            return;
+        }
+
+        const pwResult = validatePassword(newPassword);
+        if (!pwResult.valid) {
+            setError(pwResult.errors[0]);
             return;
         }
 
@@ -179,7 +186,7 @@ function RecoverPasswordPage() {
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 required
-                                minLength="6"
+                                minLength="8"
                             />
                         </div>
 
@@ -192,14 +199,14 @@ function RecoverPasswordPage() {
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 required
-                                minLength="6"
+                                minLength="8"
                             />
                         </div>
 
                         <button
                             type="submit"
                             className="btn-primary"
-                            disabled={loading || newPassword.length < 6 || confirmPassword.length < 6}
+                            disabled={loading || newPassword.length < 8 || confirmPassword.length < 8}
                         >
                             {loading ? 'Restableciendo...' : 'Restablecer'}
                         </button>
