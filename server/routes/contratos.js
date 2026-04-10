@@ -294,14 +294,21 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
         if (email_cliente && pdfUrl) {
             const transporter = req.app.locals.emailTransporter;
             if (transporter) {
-                const fs = require('fs');
-                const pdfPath = path.join(__dirname, '..', pdfUrl);
+                let attachments = [];
+                try {
+                    const pdfResponse = await fetch(pdfUrl);
+                    if (!pdfResponse.ok) throw new Error(`Fetch PDF falló: ${pdfResponse.status}`);
+                    const pdfBuf = Buffer.from(await pdfResponse.arrayBuffer());
+                    attachments = [{ filename: `contrato_${contrato.id_contrato}.pdf`, content: pdfBuf }];
+                } catch (fetchErr) {
+                    logger.error('Error descargando PDF desde R2 para email: ' + fetchErr.message, { error: fetchErr });
+                }
                 transporter.sendMail({
                     from: `"${empresa.nombre_empresa || 'Gestión de Contratos'}" <noreply@contratos.com>`,
                     to: email_cliente,
                     subject: `Contrato firmado: ${contrato.titulo_contrato}`,
                     html: `<p>Hola ${cliente_nombre || ''},</p><p>Adjuntamos el contrato firmado.</p><p>Saludos,<br>${empresa.nombre_empresa || 'Gestión de Contratos'}</p>`,
-                    attachments: fs.existsSync(pdfPath) ? [{ filename: `contrato_${contrato.id_contrato}.pdf`, path: pdfPath }] : [],
+                    attachments,
                 }).catch(emailErr => logger.error('Error enviando email post-firma: ' + emailErr.message, { error: emailErr }));
             }
         }
@@ -311,11 +318,10 @@ router.post('/:id/firmar', validateParams(idContratoParamSchema), validateBody(f
             try {
                 const { enviarPDFporWhatsApp, isTwilioConfigured } = require('../services/whatsappService');
                 if (isTwilioConfigured()) {
-                    const appUrl = process.env.APP_URL || 'http://localhost:4000';
                     enviarPDFporWhatsApp({
                         numeroCliente: numeroLimpio,
                         nombreCliente: cliente_nombre || 'Cliente',
-                        pdfUrl: `${appUrl}${pdfUrl}`,
+                        pdfUrl: pdfUrl,
                         nombreEmpresa: empresa.nombre_empresa || 'Gestión de Contratos',
                     }).catch(waErr => logger.error('Error enviando WhatsApp: ' + waErr.message, { error: waErr }));
                 }
