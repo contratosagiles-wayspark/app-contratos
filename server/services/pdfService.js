@@ -55,62 +55,63 @@ async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBas
     const chunks = [];
     doc.on('data', chunk => chunks.push(chunk));
 
-    const pdfBuffer = await new Promise((resolve, reject) => {
+    // Promesa que se resuelve cuando el stream del PDF termina
+    const pdfReady = new Promise((resolve, reject) => {
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         doc.on('error', reject);
-
-        try {
-            // ── Logo de branding en encabezado ──
-            await _renderBrandingLogo(doc, { brandingLogoUrl, logoPosicion });
-
-            // ── Encabezado ──
-            await _renderEncabezado(doc, { nombreEmpresa, logoUrl });
-
-            // ── Línea separadora ──
-            doc.moveDown(1);
-            doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#CCCCCC').lineWidth(0.5).stroke();
-            doc.moveDown(1);
-
-            // ── Título ──
-            doc.fontSize(18).font('Helvetica-Bold').fillColor('#000000')
-               .text(contrato.titulo_contrato || 'Contrato', { align: 'center' });
-            doc.moveDown(0.5);
-
-            // ── Metadatos ──
-            const fechaCreacion = contrato.fecha_creacion
-                ? new Date(contrato.fecha_creacion).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })
-                : 'Sin fecha';
-            doc.fontSize(10).font('Helvetica').fillColor('#666666')
-               .text(`Fecha: ${fechaCreacion}  |  Estado: ${contrato.estado || 'Pendiente'}`, { align: 'right' });
-            doc.moveDown(1.5);
-
-            // ── Datos del cliente (solo si firmado) ──
-            if (contrato.estado === 'Firmado') {
-                _renderDatosCliente(doc, contrato);
-            }
-
-            // ── Bloques del contrato ──
-            await _renderBloques(doc, bloques, datos);
-
-            // ── Firma digital ──
-            _renderFirma(doc, firmaBase64, contrato);
-
-            // ── Marca de agua en todas las páginas ──
-            if (marcaAgua) {
-                _renderMarcaAgua(doc, marcaAgua);
-            }
-
-            // ── Pie de página en todas las páginas ──
-            _renderPiesPagina(doc, nombreEmpresa, footerTexto);
-
-            doc.end();
-        } catch (err) {
-            doc.end();
-            reject(new Error(`Error generando PDF: ${err.message}`));
-        }
     });
 
-    return pdfBuffer;
+    try {
+        // ── Logo de branding en encabezado ──
+        await _renderBrandingLogo(doc, { brandingLogoUrl, logoPosicion });
+
+        // ── Encabezado ──
+        await _renderEncabezado(doc, { nombreEmpresa, logoUrl });
+
+        // ── Línea separadora ──
+        doc.moveDown(1);
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#CCCCCC').lineWidth(0.5).stroke();
+        doc.moveDown(1);
+
+        // ── Título ──
+        doc.fontSize(18).font('Helvetica-Bold').fillColor('#000000')
+           .text(contrato.titulo_contrato || 'Contrato', { align: 'center' });
+        doc.moveDown(0.5);
+
+        // ── Metadatos ──
+        const fechaCreacion = contrato.fecha_creacion
+            ? new Date(contrato.fecha_creacion).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })
+            : 'Sin fecha';
+        doc.fontSize(10).font('Helvetica').fillColor('#666666')
+           .text(`Fecha: ${fechaCreacion}  |  Estado: ${contrato.estado || 'Pendiente'}`, { align: 'right' });
+        doc.moveDown(1.5);
+
+        // ── Datos del cliente (solo si firmado) ──
+        if (contrato.estado === 'Firmado') {
+            _renderDatosCliente(doc, contrato);
+        }
+
+        // ── Bloques del contrato ──
+        await _renderBloques(doc, bloques, datos);
+
+        // ── Firma digital ──
+        _renderFirma(doc, firmaBase64, contrato);
+
+        // ── Marca de agua en todas las páginas ──
+        if (marcaAgua) {
+            _renderMarcaAgua(doc, marcaAgua);
+        }
+
+        // ── Pie de página en todas las páginas ──
+        _renderPiesPagina(doc, nombreEmpresa, footerTexto);
+
+        doc.end();
+    } catch (err) {
+        doc.end();
+        throw new Error(`Error generando PDF: ${err.message}`);
+    }
+
+    return await pdfReady;
 }
 
 /**
