@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS pagos (
 );
 
 -- Constraint de unicidad para idempotencia de webhooks MP
-ALTER TABLE pagos ADD CONSTRAINT IF NOT EXISTS pagos_mp_payment_id_unique UNIQUE (mp_payment_id);
+DO $$ BEGIN ALTER TABLE pagos ADD CONSTRAINT pagos_mp_payment_id_unique UNIQUE (mp_payment_id); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- =============================================
 -- Recuperación de Contraseña
