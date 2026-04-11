@@ -41,19 +41,12 @@ ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS notas_admin TEXT;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS baja_motivo VARCHAR(255);
 
 -- Actualizar constraint de plan_actual para incluir 'Empresa'
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.table_constraints
-    WHERE constraint_name = 'usuarios_plan_actual_check' AND table_name = 'usuarios'
-  ) THEN
+DO $ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'usuarios_plan_actual_check' AND table_name = 'usuarios') THEN
     ALTER TABLE usuarios DROP CONSTRAINT usuarios_plan_actual_check;
   END IF;
-  ALTER TABLE usuarios ADD CONSTRAINT usuarios_plan_actual_check
-    CHECK (plan_actual IN ('Gratuito', 'Pro', 'Empresa'));
-EXCEPTION WHEN duplicate_object THEN
-  NULL;
-END $$;
+  ALTER TABLE usuarios ADD CONSTRAINT usuarios_plan_actual_check CHECK (plan_actual IN ('Gratuito', 'Pro', 'Empresa'));
+END $;
 
 -- =============================================
 -- Plantillas
@@ -113,3 +106,12 @@ CREATE TABLE IF NOT EXISTS recovery_codes (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   expires_at TIMESTAMP NOT NULL
 );
+
+-- Columnas para soft delete de usuarios
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP DEFAULT NULL;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS deleted_reason VARCHAR(255) DEFAULT NULL;
+
+-- Columnas para verificación de email
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email_verificado BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS codigo_verificacion VARCHAR(6) DEFAULT NULL;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS codigo_verificacion_expira TIMESTAMP DEFAULT NULL;
