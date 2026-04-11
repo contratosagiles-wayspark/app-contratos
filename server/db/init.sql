@@ -100,6 +100,9 @@ CREATE TABLE IF NOT EXISTS pagos (
   payload_completo    JSONB
 );
 
+-- Constraint de unicidad para idempotencia de webhooks MP
+ALTER TABLE pagos ADD CONSTRAINT IF NOT EXISTS pagos_mp_payment_id_unique UNIQUE (mp_payment_id);
+
 -- =============================================
 -- Recuperación de Contraseña
 -- =============================================

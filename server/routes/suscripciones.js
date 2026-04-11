@@ -255,7 +255,8 @@ router.post('/webhook', validateBody(webhookSchema), async (req, res) => {
             // Registrar pago en tabla de auditoría
             await pool.query(
                 `INSERT INTO pagos (usuario_id, mp_payment_id, mp_preapproval_id, monto_ars, estado, payload_completo)
-                VALUES ($1, $2, $3, $4, $5, $6)`,
+                VALUES ($1, $2, $3, $4, $5, $6)
+                ON CONFLICT (mp_payment_id) DO UPDATE SET estado = EXCLUDED.estado, payload_completo = EXCLUDED.payload_completo, fecha = NOW()`,
                 [
                     userId,
                     pago.id?.toString(),
@@ -266,7 +267,7 @@ router.post('/webhook', validateBody(webhookSchema), async (req, res) => {
                 ]
             );
 
-            logger.info(`   ✅ Pago registrado en tabla pagos.`);
+            logger.info(`   ✅ Pago procesado en tabla pagos (insertado o actualizado).`);
         }
     } catch (err) {
         logger.error('Error procesando webhook MP: ' + err.message, { error: err });
