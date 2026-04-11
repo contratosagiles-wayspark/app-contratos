@@ -7,6 +7,7 @@ import '../styles/components/_home.scss';
 function HomePage() {
     const [usuario, setUsuario] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [loadingContratos, setLoadingContratos] = useState(true);
     const [contratos, setContratos] = useState([]);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
@@ -42,6 +43,7 @@ function HomePage() {
 
     const cargarContratos = async (pageNum, params = {}) => {
         try {
+            if (pageNum === 1) setLoadingContratos(true);
             if (pageNum > 1) setLoadingMore(true);
             let url = `/api/contratos?page=${pageNum}&limit=20`;
             if (params.buscar) url += `&buscar=${encodeURIComponent(params.buscar)}`;
@@ -60,7 +62,11 @@ function HomePage() {
         } catch (err) {
             console.error('Error cargando contratos:', err);
         } finally {
-            setLoadingMore(false);
+            if (pageNum === 1) {
+                setLoadingContratos(false);
+            } else {
+                setLoadingMore(false);
+            }
         }
     };
 
@@ -281,7 +287,40 @@ function HomePage() {
                 </div>
 
                 <div className="table-scroll" ref={scrollRef}>
-                    {contratos.length === 0 && !loadingMore ? (
+                    {loadingContratos ? (
+                        <div className="contracts-skeleton">
+                            <div className="skeleton-row">
+                                <div className="skeleton-cell skeleton-cell--id"></div>
+                                <div className="skeleton-cell skeleton-cell--title"></div>
+                                <div className="skeleton-cell skeleton-cell--actions"></div>
+                            </div>
+                            <div className="skeleton-row">
+                                <div className="skeleton-cell skeleton-cell--id"></div>
+                                <div className="skeleton-cell skeleton-cell--title"></div>
+                                <div className="skeleton-cell skeleton-cell--actions"></div>
+                            </div>
+                            <div className="skeleton-row">
+                                <div className="skeleton-cell skeleton-cell--id"></div>
+                                <div className="skeleton-cell skeleton-cell--title"></div>
+                                <div className="skeleton-cell skeleton-cell--actions"></div>
+                            </div>
+                            <div className="skeleton-row">
+                                <div className="skeleton-cell skeleton-cell--id"></div>
+                                <div className="skeleton-cell skeleton-cell--title"></div>
+                                <div className="skeleton-cell skeleton-cell--actions"></div>
+                            </div>
+                            <div className="skeleton-row">
+                                <div className="skeleton-cell skeleton-cell--id"></div>
+                                <div className="skeleton-cell skeleton-cell--title"></div>
+                                <div className="skeleton-cell skeleton-cell--actions"></div>
+                            </div>
+                            <div className="skeleton-row">
+                                <div className="skeleton-cell skeleton-cell--id"></div>
+                                <div className="skeleton-cell skeleton-cell--title"></div>
+                                <div className="skeleton-cell skeleton-cell--actions"></div>
+                            </div>
+                        </div>
+                    ) : contratos.length === 0 && !loadingMore ? (
                         <div className="empty-table">
                             <div className="empty-icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

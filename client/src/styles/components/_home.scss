@@ -172,6 +172,44 @@
                 background: $text-muted;
                 border-radius: 4px;
             }
+
+            .contracts-skeleton {
+                padding: $spacing-sm 0;
+                width: 100%;
+
+                .skeleton-row {
+                    display: grid;
+                    grid-template-columns: 60px 1fr 80px;
+                    gap: $spacing-md;
+                    padding: $spacing-md $spacing-lg;
+                    border-bottom: 1px solid rgba($border-color, 0.4);
+
+                    &:last-child {
+                        border-bottom: none;
+                    }
+                }
+
+                .skeleton-cell {
+                    height: 16px;
+                    border-radius: $radius-sm;
+                    background: linear-gradient(90deg, #e5e7eb 25%, #f0f0ee 50%, #e5e7eb 75%);
+                    background-size: 600px 100%;
+                    animation: shimmer 1.4s ease infinite;
+
+                    &--id {
+                        width: 40px;
+                    }
+
+                    &--title {
+                        width: 100%;
+                    }
+
+                    &--actions {
+                        width: 32px;
+                        margin: 0 auto;
+                    }
+                }
+            }
         }
 
         table.contracts-table {
@@ -376,6 +414,11 @@
     to {
         transform: rotate(360deg);
     }
+}
+
+@keyframes shimmer {
+    0% { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
 }
 
 // ── Action Menu Dropdown ──────────────────────────────────
