@@ -5,6 +5,7 @@ import RegisterPage from './pages/RegisterPage';
 import HomePage from './pages/HomePage';
 import TemplatePage from './pages/TemplatePage';
 import ContractFormPage from './pages/ContractFormPage';
+import ContractEditPage from './pages/ContractEditPage';
 import SignaturePage from './pages/SignaturePage';
 import ProfilePage from './pages/ProfilePage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
@@ -22,6 +23,7 @@ function App() {
                 <Route path="/plantilla/nueva" element={<TemplatePage />} />
                 <Route path="/plantilla/editar/:idPlantilla" element={<TemplatePage />} />
                 <Route path="/contrato/nuevo/:idPlantilla" element={<ContractFormPage />} />
+                <Route path="/contrato/editar/:idContrato" element={<ContractEditPage />} />
                 <Route path="/firmar/:idContrato" element={<SignaturePage />} />
                 <Route path="/perfil" element={<ProfilePage />} />
                 {/* Admin routes — each page self-guards with 403 redirect */}

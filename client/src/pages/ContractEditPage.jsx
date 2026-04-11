@@ -1,0 +1,466 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import imageCompression from 'browser-image-compression';
+import '../styles/components/_pages.scss';
+
+const COMPRESSION_OPTIONS = {
+    maxSizeMB: 0.5,
+    maxWidthOrHeight: 1280,
+    useWebWorker: true,
+    fileType: 'image/jpeg',
+};
+
+function ContractEditPage() {
+    const { idContrato } = useParams();
+    const navigate = useNavigate();
+
+    const [contrato, setContrato] = useState(null);
+    const [titulo, setTitulo] = useState('');
+    const [bloques, setBloques] = useState([]);
+    const [datos, setDatos] = useState({});
+    const [imageFields, setImageFields] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+
+    const cameraRefs = useRef({});
+    const galleryRefs = useRef({});
+
+    // ── Load contract ────────────────────────────────────────
+
+    const cargarContrato = async () => {
+        try {
+            const res = await fetch(`/api/contratos/${idContrato}`, { credentials: 'include' });
+            if (!res.ok) {
+                setError('Contrato no encontrado.');
+                setLoading(false);
+                return;
+            }
+            const data = await res.json();
+
+            if (data.contrato.estado === 'Firmado') {
+                navigate('/home');
+                return;
+            }
+
+            setContrato(data.contrato);
+
+            const bloquesParseados = typeof data.contrato.estructura_bloques === 'string'
+                ? JSON.parse(data.contrato.estructura_bloques)
+                : (data.contrato.estructura_bloques || []);
+
+            const datosParseados = typeof data.contrato.datos_ingresados === 'string'
+                ? JSON.parse(data.contrato.datos_ingresados)
+                : (data.contrato.datos_ingresados || {});
+
+            setBloques(bloquesParseados);
+            setTitulo(data.contrato.titulo_contrato);
+
+            // Build text fields
+            const datosTexto = {};
+            bloquesParseados.forEach((bloque) => {
+                if (bloque.variable && bloque.tipo !== 'imagen') {
+                    datosTexto[bloque.variable] = datosParseados[bloque.variable] || '';
+                }
+            });
+            setDatos(datosTexto);
+
+            // Build existing image fields
+            const imagenesIniciales = {};
+            bloquesParseados.forEach((bloque) => {
+                if (bloque.tipo === 'imagen' && bloque.variable) {
+                    const val = datosParseados[bloque.variable];
+                    const urls = Array.isArray(val) ? val : (val ? [val] : []);
+                    imagenesIniciales[bloque.variable] = urls
+                        .filter((url) => url != null && typeof url === 'string')
+                        .map((url) => ({
+                            id: 'existing_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                            previewUrl: url,
+                            s3Url: url,
+                            uploading: false,
+                            compressing: false,
+                            error: null,
+                            compressedSize: 0,
+                            originalName: 'imagen existente',
+                            file: null,
+                            isExisting: true,
+                        }));
+                }
+            });
+            setImageFields(imagenesIniciales);
+            setLoading(false);
+        } catch (err) {
+            setError('Error de conexión.');
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        cargarContrato();
+    }, [idContrato]);
+
+    // ── Text field handler ───────────────────────────────────
+
+    const handleChange = (variable, valor) => {
+        setDatos((prev) => ({ ...prev, [variable]: valor }));
+    };
+
+    // ── Image handling (identical to ContractFormPage) ────────
+
+    const uploadImage = async (compressedFile) => {
+        const formData = new FormData();
+        formData.append('image', compressedFile, `img_${Date.now()}.jpg`);
+
+        const response = await fetch('/api/uploads/image', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || 'Error al subir la imagen.');
+        }
+
+        const { url } = await response.json();
+        return url;
+    };
+
+    const updateImageInField = useCallback((variable, imageId, updates) => {
+        setImageFields((prev) => ({
+            ...prev,
+            [variable]: (prev[variable] || []).map((img) =>
+                img.id === imageId ? { ...img, ...updates } : img
+            ),
+        }));
+    }, []);
+
+    const handleImageSelected = async (variable, event) => {
+        const files = Array.from(event.target.files);
+        if (!files.length) return;
+
+        for (const file of files) {
+            const imageId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+            // Add placeholder to state
+            setImageFields((prev) => ({
+                ...prev,
+                [variable]: [
+                    ...(prev[variable] || []),
+                    {
+                        id: imageId,
+                        previewUrl: null,
+                        s3Url: null,
+                        uploading: false,
+                        compressing: true,
+                        error: null,
+                        compressedSize: 0,
+                        originalName: file.name,
+                        file: null, // will hold compressed file for retry
+                    },
+                ],
+            }));
+
+            try {
+                // 1. Compress
+                const compressed = await imageCompression(file, COMPRESSION_OPTIONS);
+                const previewUrl = URL.createObjectURL(compressed);
+
+                updateImageInField(variable, imageId, {
+                    previewUrl,
+                    compressing: false,
+                    uploading: true,
+                    compressedSize: compressed.size,
+                    file: compressed,
+                });
+
+                // 2. Upload
+                const s3Url = await uploadImage(compressed);
+
+                updateImageInField(variable, imageId, {
+                    s3Url,
+                    uploading: false,
+                });
+            } catch (err) {
+                console.error('Error procesando imagen:', err);
+                updateImageInField(variable, imageId, {
+                    compressing: false,
+                    uploading: false,
+                    error: err.message || 'Error al procesar la imagen.',
+                });
+            }
+        }
+
+        // Reset input so user can select the same file again
+        event.target.value = '';
+    };
+
+    const retryUpload = async (variable, imageId) => {
+        const images = imageFields[variable] || [];
+        const img = images.find((i) => i.id === imageId);
+        if (!img || !img.file) return;
+
+        updateImageInField(variable, imageId, { uploading: true, error: null });
+
+        try {
+            const s3Url = await uploadImage(img.file);
+            updateImageInField(variable, imageId, { s3Url, uploading: false });
+        } catch (err) {
+            updateImageInField(variable, imageId, {
+                uploading: false,
+                error: err.message || 'Error al subir la imagen.',
+            });
+        }
+    };
+
+    const removeImage = (variable, imageId) => {
+        setImageFields((prev) => {
+            const images = (prev[variable] || []).filter((img) => img.id !== imageId);
+            // Revoke blob URL to free memory
+            const removed = (prev[variable] || []).find((img) => img.id === imageId);
+            if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+            return { ...prev, [variable]: images };
+        });
+    };
+
+    const formatFileSize = (bytes) => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    // ── Save ────────────────────────────────────────────────
+
+    const guardar = async () => {
+        if (!titulo.trim()) {
+            setError('El título es obligatorio.');
+            return;
+        }
+
+        // Check if any images are still uploading
+        const allImages = Object.values(imageFields).flat();
+        if (allImages.some((img) => img.uploading || img.compressing)) {
+            setError('Espera a que todas las imágenes terminen de subirse.');
+            return;
+        }
+
+        setSaving(true);
+        setError('');
+
+        try {
+            // Build datos with image URLs
+            const datosCompletos = { ...datos };
+            for (const [variable, images] of Object.entries(imageFields)) {
+                const urls = images
+                    .filter((img) => img.s3Url)
+                    .map((img) => img.s3Url);
+                if (urls.length > 0) {
+                    datosCompletos[variable] = urls;
+                }
+            }
+
+            const res = await fetch(`/api/contratos/${idContrato}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    titulo_contrato: titulo,
+                    datos_ingresados: datosCompletos,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || 'Error al actualizar contrato.');
+                return;
+            }
+
+            navigate('/home');
+        } catch (err) {
+            setError('Error de conexión.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // ── Render ───────────────────────────────────────────────
+
+    if (loading) {
+        return (
+            <div className="contract-form-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div className="spinner" style={{ width: 40, height: 40, border: '3px solid #e2e8f0', borderTopColor: '#16A34A', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            </div>
+        );
+    }
+
+    return (
+        <div className="contract-form-page">
+            <div className="page-header">
+                <button className="back-btn" onClick={() => navigate('/home')}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                </button>
+                <h1>Editar Contrato</h1>
+                <div className="spacer" />
+            </div>
+
+            <input
+                className="contract-title-input"
+                type="text"
+                placeholder="Título del contrato..."
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+            />
+
+            {error && <p style={{ color: '#E53E3E', fontSize: '14px', marginBottom: '16px' }}>{error}</p>}
+
+            {bloques.map((bloque, i) => (
+                <div className="form-block" key={i}>
+                    {bloque.tipo === 'texto_estatico' && (
+                        <>
+                            <div className="block-label">📝 Texto fijo</div>
+                            <div className="block-static-text">{bloque.contenido}</div>
+                        </>
+                    )}
+
+                    {bloque.tipo === 'texto_dinamico' && (
+                        <>
+                            <div className="block-label">✏️ {bloque.etiqueta || bloque.variable}</div>
+                            <input
+                                type="text"
+                                placeholder={`Ingrese ${bloque.etiqueta || bloque.variable}...`}
+                                value={datos[bloque.variable] || ''}
+                                onChange={(e) => handleChange(bloque.variable, e.target.value)}
+                            />
+                        </>
+                    )}
+
+                    {bloque.tipo === 'valores_dinamicos' && (
+                        <>
+                            <div className="block-label">🔢 {bloque.etiqueta || bloque.variable}</div>
+                            <input
+                                type="text"
+                                placeholder={`Ingrese ${bloque.etiqueta || bloque.variable}...`}
+                                value={datos[bloque.variable] || ''}
+                                onChange={(e) => handleChange(bloque.variable, e.target.value)}
+                            />
+                        </>
+                    )}
+
+                    {bloque.tipo === 'imagen' && (
+                        <>
+                            <div className="block-label">🖼️ {bloque.etiqueta || bloque.variable}</div>
+
+                            {/* Hidden file inputs */}
+                            <input
+                                ref={(el) => { cameraRefs.current[bloque.variable] = el; }}
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                onChange={(e) => handleImageSelected(bloque.variable, e)}
+                                style={{ display: 'none' }}
+                            />
+                            <input
+                                ref={(el) => { galleryRefs.current[bloque.variable] = el; }}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => handleImageSelected(bloque.variable, e)}
+                                style={{ display: 'none' }}
+                            />
+
+                            {/* Action buttons */}
+                            <div className="image-buttons">
+                                <button
+                                    type="button"
+                                    className="image-btn camera-btn"
+                                    onClick={() => cameraRefs.current[bloque.variable]?.click()}
+                                >
+                                    📷 Tomar foto
+                                </button>
+                                <button
+                                    type="button"
+                                    className="image-btn gallery-btn"
+                                    onClick={() => galleryRefs.current[bloque.variable]?.click()}
+                                >
+                                    🖼️ Subir desde galería
+                                </button>
+                            </div>
+
+                            {/* Thumbnail grid */}
+                            {(imageFields[bloque.variable] || []).length > 0 && (
+                                <div className="image-thumbnails-grid">
+                                    {(imageFields[bloque.variable] || []).map((img) => (
+                                        <div className={`image-thumbnail ${img.error ? 'has-error' : ''}`} key={img.id}>
+                                            {img.previewUrl ? (
+                                                <img src={img.previewUrl} alt={img.originalName} />
+                                            ) : (
+                                                <div className="image-placeholder">
+                                                    <div className="mini-spinner" />
+                                                </div>
+                                            )}
+
+                                            {/* Overlay for compressing/uploading */}
+                                            {(img.compressing || img.uploading) && (
+                                                <div className="image-overlay">
+                                                    <div className="mini-spinner" />
+                                                    <span>{img.compressing ? 'Comprimiendo...' : 'Subiendo...'}</span>
+                                                </div>
+                                            )}
+
+                                            {/* Error overlay */}
+                                            {img.error && (
+                                                <div className="image-overlay error-overlay">
+                                                    <span className="error-text">Error</span>
+                                                    <button
+                                                        type="button"
+                                                        className="image-retry-btn"
+                                                        onClick={() => retryUpload(bloque.variable, img.id)}
+                                                    >
+                                                        🔄 Reintentar
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {/* Remove button */}
+                                            {!img.compressing && !img.uploading && (
+                                                <button
+                                                    type="button"
+                                                    className="image-remove-btn"
+                                                    onClick={() => removeImage(bloque.variable, img.id)}
+                                                    title="Eliminar imagen"
+                                                >
+                                                    ✕
+                                                </button>
+                                            )}
+
+                                            {/* Size label */}
+                                            {img.compressedSize > 0 && !img.compressing && (
+                                                <div className="image-size-label">
+                                                    {formatFileSize(img.compressedSize)}
+                                                </div>
+                                            )}
+
+                                            {/* Upload success check */}
+                                            {img.s3Url && !img.uploading && !img.error && (
+                                                <div className="image-success-badge">✓</div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            ))}
+
+            <button className="submit-btn" onClick={guardar} disabled={saving}>
+                {saving ? 'Guardando cambios...' : '💾 Guardar Cambios'}
+            </button>
+        </div>
+    );
+}
+
+export default ContractEditPage;
