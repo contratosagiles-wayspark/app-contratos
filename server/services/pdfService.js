@@ -152,7 +152,11 @@ async function _renderBrandingLogo(doc, { brandingLogoUrl, logoPosicion }) {
 }
 
 async function _renderEncabezado(doc, { nombreEmpresa, logoUrl }) {
-    const titulo = sanitizeForPDF(nombreEmpresa) || 'Informe de Visita Técnica';
+    const titulo = sanitizeForPDF(nombreEmpresa);
+    const tituloFinal = titulo && typeof titulo === 'string' && titulo.trim().length > 0 ? titulo : null;
+
+    if (!tituloFinal && !logoUrl) return;
+
     if (logoUrl) {
         try {
             const logoBuffer = await fetchImageBuffer(logoUrl);
@@ -163,8 +167,11 @@ async function _renderEncabezado(doc, { nombreEmpresa, logoUrl }) {
             logger.warn('Logo no insertado: ' + e.message, { error: e });
         }
     }
-    doc.fontSize(14).font('Helvetica-Bold').fillColor('#2D8A4E').text(titulo, { align: logoUrl ? 'right' : 'left' });
-    doc.fillColor('#000000');
+
+    if (tituloFinal) {
+        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2D8A4E').text(tituloFinal, { align: logoUrl ? 'right' : 'left' });
+        doc.fillColor('#000000');
+    }
 }
 
 function _renderDatosCliente(doc, contrato) {
