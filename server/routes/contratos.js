@@ -22,23 +22,42 @@ router.use(requireAuth);
 // ── GET /api/contratos ──────────────────────────────────────
 // Paginación para scroll infinito
 router.get('/', validateQuery(paginacionQuerySchema), async (req, res) => {
-    const { page, limit } = req.query;
+    const { page, limit, buscar, estado } = req.query;
     const offset = (page - 1) * limit;
 
     try {
+        // Construir condiciones dinámicas
+        const conditions = ['c.id_usuario = $1'];
+        const params = [req.session.userId];
+        let paramIndex = 2;
+
+        if (buscar) {
+            conditions.push(`c.titulo_contrato ILIKE $${paramIndex}`);
+            params.push(`%${buscar}%`);
+            paramIndex++;
+        }
+
+        if (estado) {
+            conditions.push(`c.estado = $${paramIndex}`);
+            params.push(estado);
+            paramIndex++;
+        }
+
+        const whereClause = conditions.join(' AND ');
+
         const result = await pool.query(
             `SELECT c.*, p.nombre_plantilla, COALESCE(c.estructura_bloques, p.estructura_bloques) AS estructura_bloques
        FROM contratos c
        LEFT JOIN plantillas p ON c.id_plantilla = p.id_plantilla
-       WHERE c.id_usuario = $1
+       WHERE ${whereClause}
        ORDER BY c.fecha_creacion DESC
-       LIMIT $2 OFFSET $3`,
-            [req.session.userId, limit, offset]
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+            [...params, limit, offset]
         );
 
         const countResult = await pool.query(
-            'SELECT COUNT(*) FROM contratos WHERE id_usuario = $1',
-            [req.session.userId]
+            `SELECT COUNT(*) FROM contratos c WHERE ${whereClause}`,
+            params
         );
 
         const total = parseInt(countResult.rows[0].count);

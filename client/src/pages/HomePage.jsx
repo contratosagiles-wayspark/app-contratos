@@ -13,6 +13,9 @@ function HomePage() {
     const [loadingMore, setLoadingMore] = useState(false);
     const [totalContratos, setTotalContratos] = useState(0);
     const [menuData, setMenuData] = useState(null); // { contrato, position }
+    const [buscar, setBuscar] = useState('');
+    const [filtroEstado, setFiltroEstado] = useState('');
+    const [buscarInput, setBuscarInput] = useState('');
     const scrollRef = useRef(null);
     const navigate = useNavigate();
 
@@ -29,7 +32,7 @@ function HomePage() {
             }
             const data = await res.json();
             setUsuario(data.usuario);
-            cargarContratos(1);
+            cargarContratos(1, {});
         } catch (err) {
             navigate('/');
         } finally {
@@ -37,10 +40,13 @@ function HomePage() {
         }
     };
 
-    const cargarContratos = async (pageNum) => {
+    const cargarContratos = async (pageNum, params = {}) => {
         try {
             if (pageNum > 1) setLoadingMore(true);
-            const res = await fetch(`/api/contratos?page=${pageNum}&limit=20`, { credentials: 'include' });
+            let url = `/api/contratos?page=${pageNum}&limit=20`;
+            if (params.buscar) url += `&buscar=${encodeURIComponent(params.buscar)}`;
+            if (params.filtroEstado) url += `&estado=${params.filtroEstado}`;
+            const res = await fetch(url, { credentials: 'include' });
             const data = await res.json();
 
             if (pageNum === 1) {
@@ -63,9 +69,9 @@ function HomePage() {
         if (!scrollRef.current || loadingMore || !hasMore) return;
         const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
         if (scrollTop + clientHeight >= scrollHeight - 100) {
-            cargarContratos(page + 1);
+            cargarContratos(page + 1, { buscar, filtroEstado });
         }
-    }, [loadingMore, hasMore, page]);
+    }, [loadingMore, hasMore, page, buscar, filtroEstado]);
 
     useEffect(() => {
         const el = scrollRef.current;
@@ -74,6 +80,23 @@ function HomePage() {
             return () => el.removeEventListener('scroll', handleScroll);
         }
     }, [handleScroll]);
+
+    const handleBuscar = () => {
+        setBuscar(buscarInput);
+        setPage(1);
+        setContratos([]);
+        setHasMore(true);
+        cargarContratos(1, { buscar: buscarInput, filtroEstado });
+    };
+
+    const handleFiltroEstado = (nuevoEstado) => {
+        const valor = nuevoEstado === filtroEstado ? '' : nuevoEstado;
+        setFiltroEstado(valor);
+        setPage(1);
+        setContratos([]);
+        setHasMore(true);
+        cargarContratos(1, { buscar, filtroEstado: valor });
+    };
 
     const handleLogout = async () => {
         try {
@@ -219,6 +242,42 @@ function HomePage() {
                 <div className="table-header-bar">
                     <h2>Mis Contratos</h2>
                     <span className="contract-count">{totalContratos} contrato{totalContratos !== 1 ? 's' : ''}</span>
+                </div>
+
+                <div className="contracts-filters">
+                    <form onSubmit={(e) => { e.preventDefault(); handleBuscar(); }}>
+                        <input
+                            type="text"
+                            placeholder="Buscar por título..."
+                            value={buscarInput}
+                            onChange={(e) => setBuscarInput(e.target.value)}
+                            className="filter-search-input"
+                        />
+                        <button type="submit" className="filter-search-btn">Buscar</button>
+                    </form>
+                    <div className="filter-estado-group">
+                        <button
+                            type="button"
+                            className={`filter-btn${filtroEstado === '' ? ' active' : ''}`}
+                            onClick={() => handleFiltroEstado('')}
+                        >
+                            Todos
+                        </button>
+                        <button
+                            type="button"
+                            className={`filter-btn${filtroEstado === 'Pendiente' ? ' active' : ''}`}
+                            onClick={() => handleFiltroEstado('Pendiente')}
+                        >
+                            Pendiente
+                        </button>
+                        <button
+                            type="button"
+                            className={`filter-btn${filtroEstado === 'Firmado' ? ' active' : ''}`}
+                            onClick={() => handleFiltroEstado('Firmado')}
+                        >
+                            Firmado
+                        </button>
+                    </div>
                 </div>
 
                 <div className="table-scroll" ref={scrollRef}>

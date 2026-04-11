@@ -60,6 +60,8 @@ const idContratoParamSchema = z.object({
 const paginacionQuerySchema = z.object({
     page: z.coerce.number().int().min(1, 'La página debe ser al menos 1.').default(1),
     limit: z.coerce.number().int().min(1).max(100, 'El límite máximo es 100.').default(20),
+    buscar: z.string().trim().max(255).optional(),
+    estado: z.enum(['Pendiente', 'Firmado']).optional(),
 });
 
 // ── Esquema para query de PDF ──
