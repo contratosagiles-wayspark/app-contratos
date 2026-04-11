@@ -119,6 +119,11 @@ router.post('/login', loginLimiter, validateBody(loginSchema), async (req, res) 
         }
 
         const usuario = result.rows[0];
+
+        if (usuario.deleted_at !== null) {
+            return res.status(401).json({ error: 'Esta cuenta ha sido eliminada.' });
+        }
+
         const esValida = await bcrypt.compare(contrasena, usuario.contrasena_hash);
 
         if (!esValida) {
@@ -171,13 +176,17 @@ router.get('/me', async (req, res) => {
         const result = await pool.query(
             `SELECT id_usuario, email, plan_actual, plan_estado, contratos_usados_mes,
                     plantillas_creadas, suscripcion_mp_id, plan_vencimiento, mes_actual,
-                    nombre, nombre_empresa, logo_url, created_at, rol
+                    nombre, nombre_empresa, logo_url, created_at, rol, deleted_at
        FROM usuarios WHERE id_usuario = $1`,
             [req.session.userId]
         );
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Usuario no encontrado.' });
+        }
+
+        if (result.rows[0].deleted_at !== null) {
+            return res.status(401).json({ error: 'Esta cuenta ha sido eliminada.' });
         }
 
         res.json({ usuario: result.rows[0] });
@@ -214,6 +223,50 @@ router.put('/password', passwordLimiter, validateBody(passwordChangeSchema), asy
         res.json({ message: 'Contraseña actualizada exitosamente.' });
     } catch (err) {
         logger.error('Error en cambio de contraseña: ' + err.message, { error: err });
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+
+// ── DELETE /api/auth/cuenta ─────────────────────────────────
+router.delete('/cuenta', passwordLimiter, async (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'No autenticado.' });
+    }
+
+    try {
+        const result = await pool.query(
+            'SELECT plan_actual, plan_estado, contrasena_hash FROM usuarios WHERE id_usuario = $1 AND deleted_at IS NULL',
+            [req.session.userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        }
+
+        if (result.rows[0].plan_actual !== 'Gratuito' && result.rows[0].plan_estado === 'activo') {
+            return res.status(400).json({ error: 'Debes cancelar tu suscripción antes de eliminar tu cuenta.', codigo: 'suscripcion_activa' });
+        }
+
+        const { contrasena } = req.body;
+        const esValida = await bcrypt.compare(contrasena, result.rows[0].contrasena_hash);
+
+        if (!esValida) {
+            return res.status(401).json({ error: 'Contraseña incorrecta.' });
+        }
+
+        await pool.query(
+            'UPDATE usuarios SET deleted_at = NOW(), deleted_reason = $1 WHERE id_usuario = $2',
+            ['user_request', req.session.userId]
+        );
+
+        req.session.destroy((err) => {
+            if (err) {
+                logger.error('Error al destruir sesión: ' + err.message, { error: err });
+            }
+            res.status(200).json({ message: 'Cuenta eliminada exitosamente.' });
+        });
+    } catch (err) {
+        logger.error('Error en /cuenta: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 });

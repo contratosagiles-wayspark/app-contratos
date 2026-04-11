@@ -17,6 +17,11 @@ function ProfilePage() {
     const [mostrarConfirmCancel, setMostrarConfirmCancel] = useState(false);
     const [canceling, setCanceling] = useState(false);
     const [cancelMsg, setCancelMsg] = useState('');
+    const [mostrarEliminarCuenta, setMostrarEliminarCuenta] = useState(false);
+    const [confirmarTexto, setConfirmarTexto] = useState('');
+    const [contrasenaEliminar, setContrasenaEliminar] = useState('');
+    const [eliminando, setEliminando] = useState(false);
+    const [eliminarError, setEliminarError] = useState('');
 
     useEffect(() => {
         cargarPerfil();
@@ -43,6 +48,34 @@ function ProfilePage() {
             await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
         } catch (err) { /* logout anyway */ }
         navigate('/');
+    };
+
+    const handleEliminarCuenta = async () => {
+        if (confirmarTexto.trim().toUpperCase() !== 'ELIMINAR') return;
+        setEliminando(true);
+        setEliminarError('');
+        try {
+            const res = await fetch('/api/auth/cuenta', {
+                method: 'DELETE',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contrasena: contrasenaEliminar })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                if (res.status === 400 && data.codigo === 'suscripcion_activa') {
+                    setEliminarError('Tenés una suscripción activa. Primero cancelá tu suscripción desde esta misma página.');
+                } else {
+                    setEliminarError(data.error || 'Error al eliminar la cuenta.');
+                }
+            } else {
+                await handleLogout();
+            }
+        } catch (err) {
+            setEliminarError('Error de conexión. Intenta de nuevo.');
+        } finally {
+            setEliminando(false);
+        }
     };
 
     const handleCancelarSuscripcion = async () => {
@@ -224,39 +257,6 @@ function ProfilePage() {
                                 {esEmpresa && ' • 5 técnicos'}
                             </div>
                         </div>
-                        <div className="cancel-subscription-section">
-                            {!mostrarConfirmCancel ? (
-                                <button
-                                    className="cancel-subscription-btn"
-                                    onClick={() => { setMostrarConfirmCancel(true); setCancelMsg(''); }}
-                                >
-                                    Cancelar suscripción
-                                </button>
-                            ) : (
-                                <div className="cancel-confirm-box">
-                                    <p className="cancel-confirm-text">
-                                        ¿Estás seguro? Tu plan volverá a Gratuito de inmediato y perderás acceso a las funciones premium.
-                                    </p>
-                                    {cancelMsg && <p className="cancel-error-msg">{cancelMsg}</p>}
-                                    <div className="cancel-confirm-actions">
-                                        <button
-                                            className="cancel-confirm-yes"
-                                            onClick={handleCancelarSuscripcion}
-                                            disabled={canceling}
-                                        >
-                                            {canceling ? 'Cancelando...' : 'Sí, cancelar suscripción'}
-                                        </button>
-                                        <button
-                                            className="cancel-confirm-no"
-                                            onClick={() => { setMostrarConfirmCancel(false); setCancelMsg(''); }}
-                                            disabled={canceling}
-                                        >
-                                            No, mantener plan
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
                     </>
                 )}
 
@@ -402,6 +402,113 @@ function ProfilePage() {
 
                 {passwordMsg && <p className="success-msg">{passwordMsg}</p>}
                 {passwordErr && <p className="error-msg">{passwordErr}</p>}
+            </div>
+
+            {/* Danger Zone */}
+            <div className="danger-zone-section">
+                <h3>Zona de peligro</h3>
+                
+                {esPago && (
+                    <div className="danger-card">
+                        <div className="danger-card-info">
+                            <h4>Cancelar suscripción</h4>
+                            <p>Tu plan volverá a Gratuito de inmediato.</p>
+                        </div>
+                        <div className="cancel-subscription-section">
+                            {!mostrarConfirmCancel ? (
+                                <button
+                                    className="cancel-subscription-btn"
+                                    onClick={() => { setMostrarConfirmCancel(true); setCancelMsg(''); }}
+                                >
+                                    Cancelar suscripción
+                                </button>
+                            ) : (
+                                <div className="cancel-confirm-box">
+                                    <p className="cancel-confirm-text">
+                                        ¿Estás seguro? Tu plan volverá a Gratuito de inmediato y perderás acceso a las funciones premium.
+                                    </p>
+                                    {cancelMsg && <p className="cancel-error-msg">{cancelMsg}</p>}
+                                    <div className="cancel-confirm-actions">
+                                        <button
+                                            className="cancel-confirm-yes"
+                                            onClick={handleCancelarSuscripcion}
+                                            disabled={canceling}
+                                        >
+                                            {canceling ? 'Cancelando...' : 'Sí, cancelar suscripción'}
+                                        </button>
+                                        <button
+                                            className="cancel-confirm-no"
+                                            onClick={() => { setMostrarConfirmCancel(false); setCancelMsg(''); }}
+                                            disabled={canceling}
+                                        >
+                                            No, mantener plan
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {!esEmpresa && (
+                    <div className="danger-card danger-card--destructive">
+                        <div className="danger-card-info">
+                            <h4>Eliminar cuenta</h4>
+                            <p>Esta acción es permanente. Perderás acceso a todos tus contratos y plantillas.</p>
+                        </div>
+                        {!mostrarEliminarCuenta ? (
+                            <button 
+                                className="danger-action-btn danger-action-btn--destructive"
+                                onClick={() => {
+                                    setMostrarEliminarCuenta(true);
+                                    setEliminarError('');
+                                    setConfirmarTexto('');
+                                    setContrasenaEliminar('');
+                                }}
+                            >
+                                Eliminar mi cuenta
+                            </button>
+                        ) : (
+                            <div className="danger-confirm-box">
+                                <p className="danger-confirm-warning">
+                                    Esta acción no se puede deshacer. Para confirmar, escribí ELIMINAR en el campo de abajo.
+                                </p>
+                                <input
+                                    type="text"
+                                    placeholder="Escribí ELIMINAR para confirmar"
+                                    value={confirmarTexto}
+                                    onChange={(e) => setConfirmarTexto(e.target.value)}
+                                    className="danger-confirm-input"
+                                />
+                                <label>Contraseña actual</label>
+                                <input
+                                    type="password"
+                                    placeholder="Tu contraseña actual"
+                                    value={contrasenaEliminar}
+                                    onChange={(e) => setContrasenaEliminar(e.target.value)}
+                                    className="danger-confirm-input"
+                                />
+                                {eliminarError && <p className="danger-error-msg">{eliminarError}</p>}
+                                <div className="danger-confirm-actions">
+                                    <button
+                                        className="danger-btn-confirm"
+                                        onClick={handleEliminarCuenta}
+                                        disabled={confirmarTexto.trim().toUpperCase() !== 'ELIMINAR' || !contrasenaEliminar || eliminando}
+                                    >
+                                        {eliminando ? 'Eliminando...' : 'Confirmar eliminación'}
+                                    </button>
+                                    <button
+                                        className="danger-btn-cancel"
+                                        onClick={() => setMostrarEliminarCuenta(false)}
+                                        disabled={eliminando}
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Logout */}

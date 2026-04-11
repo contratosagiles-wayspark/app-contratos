@@ -1375,7 +1375,156 @@
 
                 &:hover {
                     background: rgba(0, 0, 0, 0.03);
-                }
+        }
+    }
+}
+
+// ── Danger Zone ───────────────────────────────────────────
+.danger-zone-section {
+    margin-bottom: $spacing-lg;
+
+    h3 {
+        font-size: $font-size-sm;
+        font-weight: 700;
+        color: $text-muted;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: $spacing-md;
+    }
+}
+
+.danger-card {
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: $radius-md;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-md;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: $spacing-md;
+    flex-wrap: wrap;
+
+    &.danger-card--destructive {
+        border-color: rgba($error-color, 0.3);
+        background: $error-bg;
+    }
+}
+
+.danger-card-info {
+    h4 {
+        font-size: $font-size-base;
+        font-weight: 600;
+        color: $text-primary;
+        margin-bottom: $spacing-xs;
+    }
+    p {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+    }
+}
+
+.danger-action-btn {
+    background: $bg-card;
+    border: 1.5px solid $border-color;
+    border-radius: $radius-sm;
+    padding: $spacing-sm $spacing-md;
+    font-size: $font-size-sm;
+    font-family: $font-family;
+    cursor: pointer;
+    color: $text-secondary;
+    white-space: nowrap;
+    transition: all $transition-fast;
+
+    &.danger-action-btn--destructive {
+        border-color: rgba($error-color, 0.5);
+        color: $error-color;
+
+        &:hover:not(:disabled) {
+            background: $error-color;
+            color: white;
+            border-color: $error-color;
+        }
+    }
+}
+
+.danger-confirm-box {
+    width: 100%;
+    margin-top: $spacing-md;
+
+    .danger-confirm-warning {
+        font-size: $font-size-sm;
+        color: $error-color;
+        font-weight: 500;
+        margin-bottom: $spacing-md;
+        line-height: 1.5;
+    }
+
+    .danger-confirm-input {
+        width: 100%;
+        padding: $spacing-sm $spacing-md;
+        border: 1.5px solid $border-color;
+        border-radius: $radius-sm;
+        font-size: $font-size-sm;
+        font-family: $font-family;
+        margin-bottom: $spacing-md;
+        outline: none;
+
+        &:focus {
+            border-color: $error-color;
+            box-shadow: 0 0 0 3px rgba($error-color, 0.1);
+        }
+    }
+
+    label {
+        display: block;
+        font-size: $font-size-xs;
+        font-weight: 600;
+        color: $text-secondary;
+        margin-bottom: $spacing-xs;
+    }
+
+    .danger-error-msg {
+        font-size: $font-size-sm;
+        color: $error-color;
+        font-weight: 500;
+        margin-bottom: $spacing-sm;
+    }
+
+    .danger-confirm-actions {
+        display: flex;
+        gap: $spacing-sm;
+        flex-wrap: wrap;
+
+        .danger-btn-confirm {
+            background: $error-color;
+            color: white;
+            border: none;
+            border-radius: $radius-sm;
+            padding: $spacing-sm $spacing-md;
+            font-size: $font-size-sm;
+            font-family: $font-family;
+            font-weight: 600;
+            cursor: pointer;
+
+            &:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+        }
+
+        .danger-btn-cancel {
+            background: transparent;
+            color: $text-secondary;
+            border: 1.5px solid $border-color;
+            border-radius: $radius-sm;
+            padding: $spacing-sm $spacing-md;
+            font-size: $font-size-sm;
+            font-family: $font-family;
+            cursor: pointer;
+
+            &:disabled {
+                opacity: 0.5;
             }
         }
     }
