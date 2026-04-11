@@ -41,12 +41,12 @@ ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS notas_admin TEXT;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS baja_motivo VARCHAR(255);
 
 -- Actualizar constraint de plan_actual para incluir 'Empresa'
-DO $ BEGIN
+DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'usuarios_plan_actual_check' AND table_name = 'usuarios') THEN
     ALTER TABLE usuarios DROP CONSTRAINT usuarios_plan_actual_check;
   END IF;
   ALTER TABLE usuarios ADD CONSTRAINT usuarios_plan_actual_check CHECK (plan_actual IN ('Gratuito', 'Pro', 'Empresa'));
-END $;
+END $$;
 
 -- =============================================
 -- Plantillas
