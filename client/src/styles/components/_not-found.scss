@@ -1,0 +1,117 @@
+@use '../variables' as *;
+@use '../mixins' as *;
+
+.not-found-page {
+    min-height: 100vh;
+    background: $bg-primary;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: $spacing-xl;
+}
+
+.not-found-card {
+    background: $bg-card;
+    border-radius: $radius-xl;
+    box-shadow: $shadow-md;
+    border: 1px solid rgba($border-color, 0.5);
+    padding: $spacing-2xl;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    animation: slideUp 0.4s ease;
+}
+
+.not-found-code {
+    font-size: 6rem;
+    font-weight: 800;
+    color: $accent-green;
+    line-height: 1;
+    margin-bottom: $spacing-md;
+    opacity: 0.15;
+    font-family: $font-family;
+}
+
+.not-found-icon {
+    display: flex;
+    justify-content: center;
+    margin-bottom: $spacing-lg;
+
+    svg {
+        width: 48px;
+        height: 48px;
+        color: $accent-green;
+    }
+}
+
+.not-found-title {
+    font-size: $font-size-2xl;
+    font-weight: 700;
+    color: $text-primary;
+    margin-bottom: $spacing-md;
+}
+
+.not-found-description {
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    line-height: 1.6;
+    margin-bottom: $spacing-lg;
+}
+
+.not-found-url {
+    background: $bg-primary;
+    border: 1px solid $border-color;
+    border-radius: 8px;
+    padding: $spacing-md;
+    font-family: monospace;
+    font-size: $font-size-sm;
+    color: $text-muted;
+    margin-bottom: $spacing-xl;
+    word-break: break-all;
+    text-align: left;
+}
+
+.not-found-actions {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-md;
+}
+
+.not-found-loading {
+    font-size: $font-size-sm;
+    color: $text-muted;
+    padding: $spacing-md;
+}
+
+.not-found-btn {
+    padding: $spacing-md $spacing-xl;
+    border-radius: $radius-lg;
+    font-size: $font-size-base;
+    font-weight: 600;
+    font-family: $font-family;
+    cursor: pointer;
+    border: none;
+    transition: all $transition-base;
+    width: 100%;
+}
+
+.not-found-btn--primary {
+    background: $accent-green;
+    color: white;
+
+    &:hover {
+        background: #267a44;
+        transform: translateY(-1px);
+    }
+}
+
+.not-found-btn--secondary {
+    background: transparent;
+    color: $text-secondary;
+    border: 1.5px solid $border-color;
+
+    &:hover {
+        border-color: $accent-green;
+        color: $accent-green;
+    }
+}

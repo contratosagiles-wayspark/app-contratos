@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import RecoverPasswordPage from './pages/RecoverPasswordPage';
 import RegisterPage from './pages/RegisterPage';
@@ -11,6 +11,7 @@ import ProfilePage from './pages/ProfilePage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminUsuariosPage from './pages/AdminUsuariosPage';
 import AdminUsuarioDetallePage from './pages/AdminUsuarioDetallePage';
+import NotFoundPage from './pages/NotFoundPage';
 
 function App() {
     return (
@@ -30,7 +31,7 @@ function App() {
                 <Route path="/admin" element={<AdminDashboardPage />} />
                 <Route path="/admin/usuarios" element={<AdminUsuariosPage />} />
                 <Route path="/admin/usuarios/:id" element={<AdminUsuarioDetallePage />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<NotFoundPage />} />
             </Routes>
         </BrowserRouter>
     );
