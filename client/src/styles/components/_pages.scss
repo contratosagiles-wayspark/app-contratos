@@ -1077,6 +1077,82 @@
         letter-spacing: 0.5px;
         margin-bottom: $spacing-md;
     }
+
+    .cancel-subscription-section {
+        margin-top: $spacing-lg;
+        padding-top: $spacing-lg;
+        border-top: 1px solid $border-color;
+        width: 100%;
+    }
+
+    .cancel-subscription-btn {
+        background: none;
+        border: none;
+        color: $text-muted;
+        font-size: $font-size-sm;
+        font-family: $font-family;
+        cursor: pointer;
+        padding: 0;
+        text-decoration: underline;
+        transition: color $transition-fast;
+        &:hover { color: $error-color; }
+    }
+
+    .cancel-confirm-box {
+        width: 100%;
+        margin-top: $spacing-md;
+        background: $error-bg;
+        border: 1px solid rgba($error-color, 0.2);
+        border-radius: $radius-md;
+        padding: $spacing-lg;
+    }
+
+    .cancel-confirm-text {
+        font-size: $font-size-sm;
+        color: $text-primary;
+        margin-bottom: $spacing-md;
+        line-height: 1.5;
+    }
+
+    .cancel-error-msg {
+        font-size: $font-size-sm;
+        color: $error-color;
+        font-weight: 600;
+        margin-bottom: $spacing-sm;
+    }
+
+    .cancel-confirm-actions {
+        display: flex;
+        gap: $spacing-sm;
+        flex-wrap: wrap;
+    }
+
+    .cancel-confirm-yes {
+        background: $error-color;
+        color: white;
+        border: none;
+        border-radius: $radius-sm;
+        padding: $spacing-sm $spacing-md;
+        font-size: $font-size-sm;
+        font-family: $font-family;
+        cursor: pointer;
+        font-weight: 600;
+        &:hover:not(:disabled) { background: #b91c1c; }
+        &:disabled { opacity: 0.6; cursor: not-allowed; }
+    }
+
+    .cancel-confirm-no {
+        background: $bg-card;
+        color: $text-secondary;
+        border: 1.5px solid $border-color;
+        border-radius: $radius-sm;
+        padding: $spacing-sm $spacing-md;
+        font-size: $font-size-sm;
+        font-family: $font-family;
+        cursor: pointer;
+        &:hover:not(:disabled) { border-color: $text-secondary; }
+        &:disabled { opacity: 0.6; cursor: not-allowed; }
+    }
 }
 
 .danger-card {
