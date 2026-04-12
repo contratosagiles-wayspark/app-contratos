@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import ActionMenu from '../components/ActionMenu';
@@ -10,14 +10,14 @@ function HomePage() {
     const [loadingContratos, setLoadingContratos] = useState(true);
     const [contratos, setContratos] = useState([]);
     const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
-    const [loadingMore, setLoadingMore] = useState(false);
+    const [totalPaginas, setTotalPaginas] = useState(1);
+    const [limit, setLimit] = useState(10);
     const [totalContratos, setTotalContratos] = useState(0);
     const [menuData, setMenuData] = useState(null); // { contrato, position }
     const [buscar, setBuscar] = useState('');
     const [filtroEstado, setFiltroEstado] = useState('');
     const [buscarInput, setBuscarInput] = useState('');
-    const scrollRef = useRef(null);
+
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -41,67 +41,54 @@ function HomePage() {
         }
     };
 
-    const cargarContratos = async (pageNum, params = {}) => {
+    const cargarContratos = async (pageNum, params = {}, limitParam = limit) => {
         try {
-            if (pageNum === 1) setLoadingContratos(true);
-            if (pageNum > 1) setLoadingMore(true);
-            let url = `/api/contratos?page=${pageNum}&limit=20`;
+            setLoadingContratos(true);
+            let url = `/api/contratos?page=${pageNum}&limit=${limitParam}`;
             if (params.buscar) url += `&buscar=${encodeURIComponent(params.buscar)}`;
             if (params.filtroEstado) url += `&estado=${params.filtroEstado}`;
             const res = await fetch(url, { credentials: 'include' });
             const data = await res.json();
 
-            if (pageNum === 1) {
-                setContratos(data.contratos);
-            } else {
-                setContratos((prev) => [...prev, ...data.contratos]);
-            }
+            setContratos(data.contratos);
             setTotalContratos(data.total);
-            setHasMore(data.hasMore);
+            setTotalPaginas(data.totalPages || 1);
             setPage(pageNum);
         } catch (err) {
             console.error('Error cargando contratos:', err);
         } finally {
-            if (pageNum === 1) {
-                setLoadingContratos(false);
-            } else {
-                setLoadingMore(false);
-            }
+            setLoadingContratos(false);
         }
     };
 
-    // Infinite scroll handler
-    const handleScroll = useCallback(() => {
-        if (!scrollRef.current || loadingMore || !hasMore) return;
-        const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-        if (scrollTop + clientHeight >= scrollHeight - 100) {
-            cargarContratos(page + 1, { buscar, filtroEstado });
-        }
-    }, [loadingMore, hasMore, page, buscar, filtroEstado]);
 
-    useEffect(() => {
-        const el = scrollRef.current;
-        if (el) {
-            el.addEventListener('scroll', handleScroll);
-            return () => el.removeEventListener('scroll', handleScroll);
-        }
-    }, [handleScroll]);
 
     const handleBuscar = () => {
         setBuscar(buscarInput);
         setPage(1);
-        setContratos([]);
-        setHasMore(true);
-        cargarContratos(1, { buscar: buscarInput, filtroEstado });
+        cargarContratos(1, { buscar: buscarInput, filtroEstado }, limit);
     };
 
     const handleFiltroEstado = (nuevoEstado) => {
         const valor = nuevoEstado === filtroEstado ? '' : nuevoEstado;
         setFiltroEstado(valor);
         setPage(1);
+        cargarContratos(1, { buscar, filtroEstado: valor }, limit);
+    };
+
+    const handleCambiarLimit = (nuevoLimit) => {
+        setLimit(nuevoLimit);
+        setPage(1);
         setContratos([]);
-        setHasMore(true);
-        cargarContratos(1, { buscar, filtroEstado: valor });
+        cargarContratos(1, { buscar, filtroEstado }, nuevoLimit);
+    };
+
+    const handleCambiarPagina = (nuevaPagina) => {
+        if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas) {
+            setPage(nuevaPagina);
+            setLoadingContratos(true);
+            cargarContratos(nuevaPagina, { buscar, filtroEstado }, limit);
+        }
     };
 
     const handleLogout = async () => {
@@ -250,6 +237,43 @@ function HomePage() {
                     <span className="contract-count">{totalContratos} contrato{totalContratos !== 1 ? 's' : ''}</span>
                 </div>
 
+                <div className="pagination-controls">
+                    <div className="pagination-limit-selector">
+                        <span>Mostrar:</span>
+                        <button
+                            className={`pagination-limit-btn${limit === 5 ? ' active' : ''}`}
+                            onClick={() => handleCambiarLimit(5)}
+                        >
+                            5
+                        </button>
+                        <button
+                            className={`pagination-limit-btn${limit === 10 ? ' active' : ''}`}
+                            onClick={() => handleCambiarLimit(10)}
+                        >
+                            10
+                        </button>
+                    </div>
+                    <div className="pagination-info">
+                        {totalContratos > 0 ? `Página ${page} de ${totalPaginas}` : ''}
+                    </div>
+                    <div className="pagination-nav">
+                        <button
+                            className="pagination-nav-btn"
+                            onClick={() => handleCambiarPagina(page - 1)}
+                            disabled={page <= 1 || loadingContratos}
+                        >
+                            ← Anterior
+                        </button>
+                        <button
+                            className="pagination-nav-btn"
+                            onClick={() => handleCambiarPagina(page + 1)}
+                            disabled={page >= totalPaginas || loadingContratos}
+                        >
+                            Siguiente →
+                        </button>
+                    </div>
+                </div>
+
                 <div className="contracts-filters">
                     <form onSubmit={(e) => { e.preventDefault(); handleBuscar(); }}>
                         <input
@@ -286,7 +310,7 @@ function HomePage() {
                     </div>
                 </div>
 
-                <div className="table-scroll" ref={scrollRef}>
+                <div className="table-scroll">
                     {loadingContratos ? (
                         <div className="contracts-skeleton">
                             <div className="skeleton-row">
@@ -320,7 +344,7 @@ function HomePage() {
                                 <div className="skeleton-cell skeleton-cell--actions"></div>
                             </div>
                         </div>
-                    ) : contratos.length === 0 && !loadingMore ? (
+                    ) : contratos.length === 0 ? (
                         <div className="empty-table">
                             <div className="empty-icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -371,12 +395,7 @@ function HomePage() {
                         </table>
                     )}
 
-                    {loadingMore && (
-                        <div className="loading-more">
-                            <span className="mini-spinner" />
-                            Cargando más...
-                        </div>
-                    )}
+
                 </div>
             </div>
 
