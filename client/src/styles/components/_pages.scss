@@ -1149,7 +1149,12 @@
             &.image-block {
                 img {
                     max-width: 100%;
-                    border-radius: $radius-sm;
+                    max-height: 220px;
+                    width: auto;
+                    height: auto;
+                    object-fit: contain;
+                    border-radius: 4px;
+                    display: block;
                 }
             }
         }

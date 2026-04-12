@@ -177,7 +177,7 @@ async function _renderEncabezado(doc, { nombreEmpresa, logoUrl }) {
 }
 
 function _renderDatosCliente(doc, contrato) {
-    const startY = doc.y;
+    doc.moveDown(1.5);
     const startX = 60;
     doc.fontSize(11).font('Helvetica-Bold').text('Datos del cliente:', startX);
     doc.moveDown(0.3);
