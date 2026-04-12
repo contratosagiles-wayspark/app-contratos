@@ -83,19 +83,21 @@ async function generarPDFContrato({ contrato, bloques = [], datos = {}, firmaBas
             ? new Date(contrato.fecha_creacion).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })
             : 'Sin fecha';
         doc.fontSize(10).font('Helvetica').fillColor('#666666')
-           .text(`Fecha: ${fechaCreacion}  |  Estado: ${contrato.estado || 'Pendiente'}`, { align: 'right' });
+           .text(`Fecha: ${fechaCreacion}`, { align: 'right' });
         doc.moveDown(1.5);
 
-        // ── Datos del cliente (solo si firmado) ──
-        if (contrato.estado === 'Firmado') {
-            _renderDatosCliente(doc, contrato);
-        }
+
 
         // ── Bloques del contrato ──
         await _renderBloques(doc, bloques, datos);
 
         // ── Firma digital ──
         await _renderFirma(doc, firmaBase64, contrato);
+
+        // ── Datos del cliente (solo si firmado, después de firma) ──
+        if (contrato.estado === 'Firmado') {
+            _renderDatosCliente(doc, contrato);
+        }
 
         // ── Marca de agua en todas las páginas ──
         if (marcaAgua) {
@@ -246,12 +248,15 @@ async function _renderBloqueImagen(doc, bloque, datos) {
     doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(`${labelStr}:`);
     doc.moveDown(0.3);
     const urls = Array.isArray(imagenes) ? imagenes : [imagenes];
+    const MAX_WIDTH = 400;
+    const MAX_HEIGHT = 200;
     for (const imgUrl of urls) {
-        if (doc.y > 600) doc.addPage();
+        const espacioDisponible = 720 - doc.y;
+        if (espacioDisponible < MAX_HEIGHT + 20) doc.addPage();
         try {
             const imgBuffer = await fetchImageBuffer(imgUrl);
             if (imgBuffer) {
-                doc.image(imgBuffer, { width: 250, align: 'center' });
+                doc.image(imgBuffer, { fit: [MAX_WIDTH, MAX_HEIGHT], align: 'center' });
                 doc.moveDown(0.5);
             }
         } catch (imgErr) {
@@ -298,11 +303,7 @@ async function _renderFirma(doc, firmaBase64, contrato) {
         });
         doc.moveDown(1); // Espacio después de la imagen
 
-        // Nombre del firmante debajo de la firma
-        if (contrato.cliente_nombre) {
-            doc.fontSize(10).font('Helvetica').fillColor('#333333')
-               .text(sanitizeForPDF(contrato.cliente_nombre));
-        }
+
 
         // Fecha de firma
         const fechaFirma = new Date().toLocaleDateString('es-AR', {
