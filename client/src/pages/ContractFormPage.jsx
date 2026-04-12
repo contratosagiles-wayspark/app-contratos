@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import imageCompression from 'browser-image-compression';
+import CameraModal from '../components/CameraModal';
 import '../styles/components/_pages.scss';
 
 const COMPRESSION_OPTIONS = {
@@ -20,9 +21,9 @@ function ContractFormPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const [camaraAbierta, setCamaraAbierta] = useState(null); // variable del bloque activo o null
 
     // Refs for hidden file inputs — keyed by variable
-    const cameraRefs = useRef({});
     const galleryRefs = useRef({});
 
     useEffect(() => {
@@ -149,6 +150,56 @@ function ContractFormPage() {
 
         // Reset input so user can select the same file again
         event.target.value = '';
+    };
+
+    const handleCameraCapture = async (variable, file) => {
+        setCamaraAbierta(null); // Cerrar modal
+
+        const imageId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+        setImageFields((prev) => ({
+            ...prev,
+            [variable]: [
+                ...(prev[variable] || []),
+                {
+                    id: imageId,
+                    previewUrl: null,
+                    s3Url: null,
+                    uploading: false,
+                    compressing: true,
+                    error: null,
+                    compressedSize: 0,
+                    originalName: file.name,
+                    file: null,
+                },
+            ],
+        }));
+
+        try {
+            const compressed = await imageCompression(file, COMPRESSION_OPTIONS);
+            const previewUrl = URL.createObjectURL(compressed);
+
+            updateImageInField(variable, imageId, {
+                previewUrl,
+                compressing: false,
+                uploading: true,
+                compressedSize: compressed.size,
+                file: compressed,
+            });
+
+            const s3Url = await uploadImage(compressed);
+
+            updateImageInField(variable, imageId, {
+                s3Url,
+                uploading: false,
+            });
+        } catch (err) {
+            updateImageInField(variable, imageId, {
+                compressing: false,
+                uploading: false,
+                error: err.message || 'Error al procesar la imagen.',
+            });
+        }
     };
 
     const retryUpload = async (variable, imageId) => {
@@ -318,14 +369,6 @@ function ContractFormPage() {
 
                             {/* Hidden file inputs */}
                             <input
-                                ref={(el) => { cameraRefs.current[bloque.variable] = el; }}
-                                type="file"
-                                accept="image/*"
-                                capture="environment"
-                                onChange={(e) => handleImageSelected(bloque.variable, e)}
-                                style={{ display: 'none' }}
-                            />
-                            <input
                                 ref={(el) => { galleryRefs.current[bloque.variable] = el; }}
                                 type="file"
                                 accept="image/*"
@@ -339,7 +382,7 @@ function ContractFormPage() {
                                 <button
                                     type="button"
                                     className="image-btn camera-btn"
-                                    onClick={() => cameraRefs.current[bloque.variable]?.click()}
+                                    onClick={() => setCamaraAbierta(bloque.variable)}
                                 >
                                     📷 Tomar foto
                                 </button>
@@ -422,6 +465,13 @@ function ContractFormPage() {
             <button className="submit-btn" onClick={guardar} disabled={saving}>
                 {saving ? 'Creando contrato...' : '📄 Crear Contrato'}
             </button>
+
+            {camaraAbierta && (
+                <CameraModal
+                    onCapture={(file) => handleCameraCapture(camaraAbierta, file)}
+                    onClose={() => setCamaraAbierta(null)}
+                />
+            )}
         </div>
     );
 }
