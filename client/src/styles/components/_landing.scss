@@ -30,10 +30,15 @@
         }
     }
 
+    // Desktop: botones visibles
     .landing-nav-actions {
         display: flex;
         gap: $spacing-md;
         align-items: center;
+
+        @media (max-width: 768px) {
+            display: none;
+        }
 
         .btn-nav-login {
             background: none;
@@ -70,6 +75,109 @@
             &:hover {
                 background: darken($accent-green, 8%);
                 transform: translateY(-1px);
+            }
+        }
+    }
+
+    // Mobile: botón hamburguesa
+    .hamburger-btn {
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 5px;
+        width: 40px;
+        height: 40px;
+        background: none;
+        border: 1.5px solid $border-color;
+        border-radius: $radius-sm;
+        cursor: pointer;
+        padding: 8px;
+        transition: border-color $transition-fast;
+
+        @media (max-width: 768px) {
+            display: flex;
+        }
+
+        span {
+            display: block;
+            width: 18px;
+            height: 2px;
+            background: $text-primary;
+            border-radius: 2px;
+            transition: all $transition-base;
+            transform-origin: center;
+        }
+
+        // Animación a X cuando está abierto
+        &.open {
+            border-color: $accent-green;
+
+            span:nth-child(1) {
+                transform: translateY(7px) rotate(45deg);
+            }
+
+            span:nth-child(2) {
+                opacity: 0;
+                transform: scaleX(0);
+            }
+
+            span:nth-child(3) {
+                transform: translateY(-7px) rotate(-45deg);
+            }
+        }
+
+        &:hover {
+            border-color: $accent-green;
+        }
+    }
+}
+
+// ── Menú mobile desplegable ───────────────────────────────────
+.mobile-menu {
+    display: none;
+    position: sticky;
+    top: 65px;
+    z-index: 99;
+    background: $bg-card;
+    border-bottom: 1px solid $border-color;
+    box-shadow: $shadow-md;
+    flex-direction: column;
+    padding: $spacing-md $spacing-xl;
+    gap: $spacing-sm;
+    animation: slideUp 0.2s ease;
+
+    @media (max-width: 768px) {
+        display: flex;
+    }
+
+    .mobile-menu-item {
+        display: block;
+        padding: $spacing-md $spacing-lg;
+        border-radius: $radius-md;
+        font-family: $font-family;
+        font-size: $font-size-base;
+        font-weight: 500;
+        text-decoration: none;
+        text-align: center;
+        color: $text-primary;
+        border: 1.5px solid $border-color;
+        transition: all $transition-fast;
+
+        &:hover {
+            border-color: $accent-green;
+            color: $accent-green;
+        }
+
+        &.primary {
+            background: $accent-green;
+            color: white;
+            border-color: $accent-green;
+            font-weight: 600;
+
+            &:hover {
+                background: darken($accent-green, 8%);
+                color: white;
             }
         }
     }

@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import '../styles/components/_landing.scss';
 
 function LandingPage() {
+    const [menuAbierto, setMenuAbierto] = useState(false);
+
     return (
         <div className="landing-page">
 
@@ -10,11 +13,44 @@ function LandingPage() {
                 <Link to="/" className="landing-logo">
                     Contratos<span>Agiles</span>
                 </Link>
+
+                {/* Desktop: botones visibles */}
                 <div className="landing-nav-actions">
                     <Link to="/login" className="btn-nav-login">Iniciar sesión</Link>
                     <Link to="/register" className="btn-nav-cta">Empezar gratis</Link>
                 </div>
+
+                {/* Mobile: botón hamburguesa */}
+                <button
+                    className={`hamburger-btn ${menuAbierto ? 'open' : ''}`}
+                    onClick={() => setMenuAbierto((prev) => !prev)}
+                    aria-label="Abrir menú"
+                >
+                    <span />
+                    <span />
+                    <span />
+                </button>
             </nav>
+
+            {/* Mobile: menú desplegable */}
+            {menuAbierto && (
+                <div className="mobile-menu">
+                    <Link
+                        to="/login"
+                        className="mobile-menu-item"
+                        onClick={() => setMenuAbierto(false)}
+                    >
+                        Iniciar sesión
+                    </Link>
+                    <Link
+                        to="/register"
+                        className="mobile-menu-item primary"
+                        onClick={() => setMenuAbierto(false)}
+                    >
+                        Empezar gratis
+                    </Link>
+                </div>
+            )}
 
             {/* ── Hero ── */}
             <section className="landing-hero">
