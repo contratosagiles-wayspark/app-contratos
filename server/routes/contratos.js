@@ -85,24 +85,21 @@ router.post('/', validateBody(crearContratoSchema), async (req, res) => {
 
     try {
         // Verificar límite freemium
-        const userResult = await pool.query(
-            'SELECT plan_actual, contratos_usados_mes, mes_actual FROM usuarios WHERE id_usuario = $1',
-            [req.session.userId]
-        );
-        const user = userResult.rows[0];
+        const limiteResult = await pool.query(`
+            SELECT
+                u.plan_actual,
+                (SELECT COUNT(*)::int
+                 FROM contratos c
+                 WHERE c.id_usuario = u.id_usuario
+                 AND date_trunc('month', c.fecha_creacion) = date_trunc('month', CURRENT_DATE)
+                ) AS contratos_este_mes
+            FROM usuarios u
+            WHERE u.id_usuario = $1
+        `, [req.session.userId]);
 
-        // B1: Reset mensual del contador de contratos
-        const mesActual = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
-        if (user.mes_actual !== mesActual) {
-            await pool.query(
-                'UPDATE usuarios SET contratos_usados_mes = 0, mes_actual = $1 WHERE id_usuario = $2',
-                [mesActual, req.session.userId]
-            );
-            user.contratos_usados_mes = 0;
-            user.mes_actual = mesActual;
-        }
+        const { plan_actual, contratos_este_mes } = limiteResult.rows[0];
 
-        if (user.plan_actual === 'Gratuito' && user.contratos_usados_mes >= 15) {
+        if (plan_actual === 'Gratuito' && contratos_este_mes >= 15) {
             return res.status(403).json({
                 error: 'Has alcanzado el límite de 15 contratos mensuales en el plan Gratuito.',
                 upgrade: true,
@@ -121,21 +118,39 @@ router.post('/', validateBody(crearContratoSchema), async (req, res) => {
         const plantilla = plantillaResult.rows[0];
         const bloquesCopia = JSON.stringify(plantilla.estructura_bloques || []);
 
-        const result = await pool.query(
-            `INSERT INTO contratos (id_usuario, id_plantilla, titulo_contrato, datos_ingresados, email_cliente, estructura_bloques, marca_agua, logo_url, logo_posicion, footer_texto)
+        let client;
+        try {
+            client = await pool.connect();
+        } catch (connErr) {
+            throw connErr;
+        }
+
+        try {
+            await client.query('BEGIN');
+
+            const result = await client.query(
+                `INSERT INTO contratos (id_usuario, id_plantilla, titulo_contrato, datos_ingresados, email_cliente, estructura_bloques, marca_agua, logo_url, logo_posicion, footer_texto)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
-            [req.session.userId, id_plantilla || null, titulo_contrato, JSON.stringify(datos_ingresados || {}), email_cliente || null, bloquesCopia,
-             plantilla.marca_agua || null, plantilla.logo_url || null, plantilla.logo_posicion || null, plantilla.footer_texto || null]
-        );
+                [req.session.userId, id_plantilla || null, titulo_contrato, JSON.stringify(datos_ingresados || {}), email_cliente || null, bloquesCopia,
+                 plantilla.marca_agua || null, plantilla.logo_url || null, plantilla.logo_posicion || null, plantilla.footer_texto || null]
+            );
 
-        // Incrementar contador
-        await pool.query(
-            'UPDATE usuarios SET contratos_usados_mes = contratos_usados_mes + 1 WHERE id_usuario = $1',
-            [req.session.userId]
-        );
+            // Incrementar contador
+            await client.query(
+                'UPDATE usuarios SET contratos_usados_mes = contratos_usados_mes + 1 WHERE id_usuario = $1',
+                [req.session.userId]
+            );
 
-        res.status(201).json({ contrato: result.rows[0] });
+            await client.query('COMMIT');
+            res.status(201).json({ contrato: result.rows[0] });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            logger.error('Error en POST /contratos (transacción revertida): ' + err.message, { error: err });
+            return res.status(500).json({ error: 'Error interno del servidor.' });
+        } finally {
+            client.release();
+        }
     } catch (err) {
         logger.error('Error en POST /contratos: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
@@ -210,16 +225,35 @@ router.put('/:id', validateParams(idContratoParamSchema), validateBody(actualiza
 // ── DELETE /api/contratos/:id ───────────────────────────────
 router.delete('/:id', validateParams(idContratoParamSchema), async (req, res) => {
     try {
-        const result = await pool.query(
-            'DELETE FROM contratos WHERE id_contrato = $1 AND id_usuario = $2 RETURNING id_contrato',
-            [req.params.id, req.session.userId]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Contrato no encontrado.' });
+        let client;
+        try {
+            client = await pool.connect();
+        } catch (connErr) {
+            throw connErr;
         }
 
-        res.json({ message: 'Contrato eliminado exitosamente.' });
+        try {
+            await client.query('BEGIN');
+
+            const result = await client.query(
+                'DELETE FROM contratos WHERE id_contrato = $1 AND id_usuario = $2 RETURNING id_contrato',
+                [req.params.id, req.session.userId]
+            );
+
+            if (result.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ error: 'Contrato no encontrado.' });
+            }
+
+            await client.query('COMMIT');
+            res.json({ message: 'Contrato eliminado exitosamente.' });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            logger.error('Error en DELETE /contratos/:id (transacción revertida): ' + err.message, { error: err });
+            return res.status(500).json({ error: 'Error interno del servidor.' });
+        } finally {
+            client.release();
+        }
     } catch (err) {
         logger.error('Error en DELETE /contratos/:id: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });

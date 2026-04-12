@@ -156,21 +156,39 @@ router.post('/', validateBody(crearPlantillaSchema), async (req, res) => {
         const brandingLogoPosicion = esPremium && logo_posicion && VALID_LOGO_POSICIONES.includes(logo_posicion) ? logo_posicion : null;
         const brandingFooter = esPremium ? toNullIfEmpty(footer_texto) : null;
 
-        const result = await pool.query(
-            `INSERT INTO plantillas (id_usuario, nombre_plantilla, estructura_bloques, marca_agua, logo_url, logo_posicion, footer_texto)
+        let client;
+        try {
+            client = await pool.connect();
+        } catch (connErr) {
+            throw connErr;
+        }
+
+        try {
+            await client.query('BEGIN');
+
+            const result = await client.query(
+                `INSERT INTO plantillas (id_usuario, nombre_plantilla, estructura_bloques, marca_agua, logo_url, logo_posicion, footer_texto)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-            [req.session.userId, nombre_plantilla, JSON.stringify(estructura_bloques || []),
-             brandingMarcaAgua, brandingLogoUrl, brandingLogoPosicion, brandingFooter]
-        );
+                [req.session.userId, nombre_plantilla, JSON.stringify(estructura_bloques || []),
+                 brandingMarcaAgua, brandingLogoUrl, brandingLogoPosicion, brandingFooter]
+            );
 
-        // Incrementar contador
-        await pool.query(
-            'UPDATE usuarios SET plantillas_creadas = plantillas_creadas + 1 WHERE id_usuario = $1',
-            [req.session.userId]
-        );
+            // Incrementar contador
+            await client.query(
+                'UPDATE usuarios SET plantillas_creadas = plantillas_creadas + 1 WHERE id_usuario = $1',
+                [req.session.userId]
+            );
 
-        res.status(201).json({ plantilla: result.rows[0] });
+            await client.query('COMMIT');
+            res.status(201).json({ plantilla: result.rows[0] });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            logger.error('Error en POST /plantillas (transacción revertida): ' + err.message, { error: err });
+            return res.status(500).json({ error: 'Error interno del servidor.' });
+        } finally {
+            client.release();
+        }
     } catch (err) {
         logger.error('Error en POST /plantillas: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
@@ -248,22 +266,41 @@ router.put('/:id', validateParams(idPlantillaParamSchema), validateBody(actualiz
 // ── DELETE /api/plantillas/:id ──────────────────────────────
 router.delete('/:id', validateParams(idPlantillaParamSchema), async (req, res) => {
     try {
-        const result = await pool.query(
-            'DELETE FROM plantillas WHERE id_plantilla = $1 AND id_usuario = $2 RETURNING id_plantilla',
-            [req.params.id, req.session.userId]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Plantilla no encontrada.' });
+        let client;
+        try {
+            client = await pool.connect();
+        } catch (connErr) {
+            throw connErr;
         }
 
-        // Decrementar contador
-        await pool.query(
-            'UPDATE usuarios SET plantillas_creadas = GREATEST(plantillas_creadas - 1, 0) WHERE id_usuario = $1',
-            [req.session.userId]
-        );
+        try {
+            await client.query('BEGIN');
 
-        res.json({ message: 'Plantilla eliminada exitosamente.' });
+            const result = await client.query(
+                'DELETE FROM plantillas WHERE id_plantilla = $1 AND id_usuario = $2 RETURNING id_plantilla',
+                [req.params.id, req.session.userId]
+            );
+
+            if (result.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ error: 'Plantilla no encontrada.' });
+            }
+
+            // Decrementar contador
+            await client.query(
+                'UPDATE usuarios SET plantillas_creadas = GREATEST(plantillas_creadas - 1, 0) WHERE id_usuario = $1',
+                [req.session.userId]
+            );
+
+            await client.query('COMMIT');
+            res.json({ message: 'Plantilla eliminada exitosamente.' });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            logger.error('Error en DELETE /plantillas/:id (transacción revertida): ' + err.message, { error: err });
+            return res.status(500).json({ error: 'Error interno del servidor.' });
+        } finally {
+            client.release();
+        }
     } catch (err) {
         logger.error('Error en DELETE /plantillas/:id: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
