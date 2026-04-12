@@ -148,6 +148,11 @@ function LoginPage() {
                 <div className="login-footer">
                     ¿No tienes cuenta?
                     <Link to="/register">Regístrate</Link>
+                    <div className="legal-links">
+                        <Link to="/terminos">Términos</Link>
+                        {' · '}
+                        <Link to="/privacidad">Privacidad</Link>
+                    </div>
                 </div>
             </div>
         </div>

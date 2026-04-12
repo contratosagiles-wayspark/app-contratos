@@ -1,0 +1,90 @@
+@use '../variables' as *;
+@use '../mixins' as *;
+
+.legal-page {
+    min-height: 100vh;
+    background: $bg-primary;
+    padding: $spacing-xl $spacing-lg;
+
+    .legal-container {
+        max-width: 720px;
+        margin: 0 auto;
+        background: $bg-card;
+        border-radius: $radius-lg;
+        padding: $spacing-2xl;
+        box-shadow: $shadow-sm;
+
+        h1 {
+            font-size: $font-size-2xl;
+            font-weight: 700;
+            color: $text-primary;
+            margin-bottom: $spacing-xs;
+        }
+
+        .legal-date {
+            font-size: $font-size-sm;
+            color: $text-muted;
+            margin-bottom: $spacing-xl;
+        }
+
+        section {
+            margin-bottom: $spacing-xl;
+
+            h2 {
+                font-size: $font-size-lg;
+                font-weight: 600;
+                color: $text-primary;
+                margin-bottom: $spacing-sm;
+                padding-bottom: $spacing-xs;
+                border-bottom: 1px solid $border-color;
+            }
+
+            p {
+                font-size: $font-size-sm;
+                color: $text-secondary;
+                line-height: 1.8;
+                margin-bottom: $spacing-sm;
+            }
+
+            a {
+                color: $accent-green;
+                font-weight: 500;
+            }
+        }
+
+        .back-btn {
+            background: none;
+            border: 1px solid $border-color;
+            border-radius: $radius-sm;
+            padding: $spacing-sm $spacing-md;
+            font-family: $font-family;
+            font-size: $font-size-sm;
+            color: $text-secondary;
+            cursor: pointer;
+            margin-bottom: $spacing-xl;
+            display: inline-block;
+            transition: all $transition-fast;
+
+            &:hover {
+                border-color: $accent-green;
+                color: $accent-green;
+            }
+        }
+    }
+}
+
+.legal-links {
+    margin-top: $spacing-sm;
+    font-size: $font-size-xs;
+    color: $text-muted;
+    text-align: center;
+
+    a {
+        color: $text-muted;
+        font-weight: 400;
+
+        &:hover {
+            color: $accent-green;
+        }
+    }
+}

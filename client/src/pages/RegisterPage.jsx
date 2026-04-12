@@ -128,6 +128,11 @@ function RegisterPage() {
 
                     <div className="login-footer">
                         <Link to="/">Volver al inicio de sesión</Link>
+                        <div className="legal-links">
+                            <Link to="/terminos">Términos</Link>
+                            {' · '}
+                            <Link to="/privacidad">Privacidad</Link>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -204,6 +209,11 @@ function RegisterPage() {
                 <div className="login-footer">
                     ¿Ya tienes cuenta?
                     <Link to="/">Inicia sesión</Link>
+                    <div className="legal-links">
+                        <Link to="/terminos">Términos</Link>
+                        {' · '}
+                        <Link to="/privacidad">Privacidad</Link>
+                    </div>
                 </div>
             </div>
         </div>

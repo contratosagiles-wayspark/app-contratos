@@ -12,6 +12,8 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminUsuariosPage from './pages/AdminUsuariosPage';
 import AdminUsuarioDetallePage from './pages/AdminUsuarioDetallePage';
 import NotFoundPage from './pages/NotFoundPage';
+import TerminosPage from './pages/TerminosPage';
+import PrivacidadPage from './pages/PrivacidadPage';
 
 function App() {
     return (
@@ -31,6 +33,8 @@ function App() {
                 <Route path="/admin" element={<AdminDashboardPage />} />
                 <Route path="/admin/usuarios" element={<AdminUsuariosPage />} />
                 <Route path="/admin/usuarios/:id" element={<AdminUsuarioDetallePage />} />
+                <Route path="/terminos" element={<TerminosPage />} />
+                <Route path="/privacidad" element={<PrivacidadPage />} />
                 <Route path="*" element={<NotFoundPage />} />
             </Routes>
         </BrowserRouter>
