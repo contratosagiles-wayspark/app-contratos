@@ -190,10 +190,7 @@ function _renderDatosCliente(doc, contrato) {
     if (contrato.email_cliente) {
         doc.fontSize(10).font('Helvetica').text(`Email: ${sanitizeForPDF(contrato.email_cliente)}`, startX);
     }
-    // Borde izquierdo verde
-    const endY = doc.y + 5;
-    doc.moveTo(53, startY - 3).lineTo(53, endY).strokeColor('#2D8A4E').lineWidth(3).stroke();
-    doc.lineWidth(0.5);
+
     doc.moveDown(1.5);
 }
 
@@ -295,11 +292,14 @@ async function _renderFirma(doc, firmaBase64, contrato) {
             firmaBuffer = Buffer.from(base64Data, 'base64');
         }
 
+        // Chequeo de espacio antes de insertar la firma
+        if (doc.y > 600) doc.addPage();
+
         // Insertar la imagen de la firma real en el PDF
         doc.image(firmaBuffer, {
-            width: 400,
-            height: 150,
-            fit: [400, 150],
+            width: 500,
+            height: 250,
+            fit: [500, 250],
         });
         doc.moveDown(1); // Espacio después de la imagen
 
@@ -313,7 +313,7 @@ async function _renderFirma(doc, firmaBase64, contrato) {
             hour: '2-digit',
             minute: '2-digit',
         });
-        doc.fontSize(9).font('Helvetica').fillColor('#666666')
+        doc.fontSize(9).font('Helvetica').fillColor('#333333')
             .text(`Firmado digitalmente el ${fechaFirma}`);
 
     } catch (firmaErr) {
