@@ -9,12 +9,71 @@ const { validateBody, validateParams, validateQuery } = require('../middleware/v
 const { crearContratoSchema, actualizarContratoSchema, firmarContratoSchema, idContratoParamSchema, paginacionQuerySchema, pdfQuerySchema } = require('../validators/contratos');
 const { sanitizeObject } = require('../utils/sanitize');
 const logger = require('../config/logger');
-const { contratosLimiter } = require('../config/rateLimiters');
+const { contratosLimiter, previewPublicoLimiter } = require('../config/rateLimiters');
 
 const router = express.Router();
 
 // Rate limiting global del router
 router.use(contratosLimiter);
+
+// Todas las rutas debajo de esto requerirán autenticación (a menos que se sobreescriba, ej: preview)
+// ── GET /api/contratos/:id/preview-publico ──────────────────
+// Genera PDF de preview sin firma para el firmante. Ruta PÚBLICA (sin auth).
+router.get('/:id/preview-publico', previewPublicoLimiter, validateParams(idContratoParamSchema), async (req, res) => {
+    try {
+        const contratoResult = await pool.query(
+            `SELECT c.*, p.nombre_plantilla, COALESCE(c.estructura_bloques, p.estructura_bloques) AS estructura_bloques
+             FROM contratos c
+             LEFT JOIN plantillas p ON c.id_plantilla = p.id_plantilla
+             WHERE c.id_contrato = $1`,
+            [req.params.id]
+        );
+
+        if (contratoResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Contrato no encontrado.' });
+        }
+
+        const contrato = contratoResult.rows[0];
+
+        const bloques = contrato.estructura_bloques || [];
+        let datos = {};
+        try {
+            datos = typeof contrato.datos_ingresados === 'string'
+                ? JSON.parse(contrato.datos_ingresados)
+                : (contrato.datos_ingresados || {});
+        } catch (e) { datos = {}; }
+
+        // Obtener datos de empresa del dueño del contrato
+        const userInfo = await pool.query(
+            'SELECT nombre_empresa, logo_url FROM usuarios WHERE id_usuario = $1',
+            [contrato.id_usuario]
+        );
+        const empresa = userInfo.rows[0] || {};
+
+        const pdfBuffer = await generarPDFContrato({
+            contrato,
+            bloques,
+            datos,
+            firmaBase64: null,           // Sin firma — es preview
+            firmaRepresentanteBase64: null,
+            nombreRepresentante: null,
+            nombreEmpresa: empresa.nombre_empresa || null,
+            logoUrl: empresa.logo_url || null,
+            marcaAgua: 'BORRADOR',       // Marca de agua para indicar que es preview
+            brandingLogoUrl: contrato.logo_url || null,
+            logoPosicion: contrato.logo_posicion || null,
+            footerTexto: contrato.footer_texto || null,
+        });
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline; filename="preview.pdf"');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.send(pdfBuffer);
+    } catch (err) {
+        logger.error('Error en GET /contratos/:id/preview-publico: ' + err.message, { error: err });
+        res.status(500).json({ error: 'Error generando preview.' });
+    }
+});
 
 // Todas las rutas requieren autenticación
 router.use(requireAuth);

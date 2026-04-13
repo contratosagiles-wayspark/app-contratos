@@ -64,6 +64,14 @@ const adminLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+const previewPublicoLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,  // 5 minutos
+    max: 10,                    // máximo 10 requests por IP en 5 min
+    message: { error: 'Demasiadas solicitudes. Intenta en unos minutos.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 module.exports = {
     authLimiter,
     contratosLimiter,
@@ -71,4 +79,5 @@ module.exports = {
     uploadsLimiter,
     suscripcionesLimiter,
     adminLimiter,
+    previewPublicoLimiter,
 };

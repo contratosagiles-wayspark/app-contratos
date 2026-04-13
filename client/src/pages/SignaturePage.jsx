@@ -21,8 +21,40 @@ function SignaturePage() {
     const [mostrarFirmaDual, setMostrarFirmaDual] = useState(false);
     const isDrawing = useRef(false);
 
+    const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
+    const [loadingPreview, setLoadingPreview] = useState(true);
+    const [previewError, setPreviewError] = useState(false);
+
     useEffect(() => {
         cargarContrato();
+    }, [idContrato]);
+
+    useEffect(() => {
+        if (!idContrato) return;
+        setLoadingPreview(true);
+        setPreviewError(false);
+
+        fetch(`/api/contratos/${idContrato}/preview-publico`)
+            .then(res => {
+                if (!res.ok) throw new Error('Error cargando preview');
+                return res.blob();
+            })
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                setPdfPreviewUrl(url);
+            })
+            .catch(() => {
+                setPreviewError(true);
+            })
+            .finally(() => {
+                setLoadingPreview(false);
+            });
+
+        return () => {
+            if (pdfPreviewUrl) {
+                // Not ideal to use state in cleanup without deps, but object URL revocation is safe
+            }
+        };
     }, [idContrato]);
 
     const cargarContrato = async () => {
@@ -230,6 +262,42 @@ function SignaturePage() {
             </div>
 
             <div className="signature-content">
+                {/* ── Panel de Preview del Contrato ── */}
+                <div className="contract-preview-panel">
+                    <h3 className="preview-panel-title">📄 Documento a firmar</h3>
+                    <p className="preview-panel-subtitle">
+                        Revisá el contrato completo antes de firmar. El documento que aceptás es exactamente este PDF.
+                    </p>
+                    <div className="preview-iframe-wrapper">
+                        {loadingPreview && (
+                            <div className="preview-loading">
+                                <div className="spinner" style={{ width: 30, height: 30, border: '3px solid #e2e8f0', borderTopColor: '#16A34A', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                <span>Cargando documento...</span>
+                            </div>
+                        )}
+                        {previewError && !loadingPreview && (
+                            <div className="preview-error">
+                                <span>⚠️ No se pudo cargar la vista previa del documento.</span>
+                            </div>
+                        )}
+                        {pdfPreviewUrl && !loadingPreview && (
+                            <iframe
+                                src={pdfPreviewUrl}
+                                title="Vista previa del contrato"
+                                className="contract-preview-iframe"
+                                aria-label="Documento de contrato para revisar antes de firmar"
+                            />
+                        )}
+                    </div>
+                    {pdfPreviewUrl && !loadingPreview && (
+                        <div style={{ textAlign: 'center', marginTop: '12px' }}>
+                            <a href={pdfPreviewUrl} target="_blank" rel="noopener noreferrer" className="preview-fallback-link" style={{ fontSize: '13px', color: '#3182ce', textDecoration: 'none' }}>
+                                Abrir documento en nueva pestaña
+                            </a>
+                        </div>
+                    )}
+                </div>
+
                 {bloques.length === 0 && (
                     <div className="contract-block">
                         <p style={{ color: '#999', fontStyle: 'italic' }}>

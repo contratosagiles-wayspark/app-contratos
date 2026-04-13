@@ -174,11 +174,7 @@ router.post('/', validateBody(crearPlantillaSchema), async (req, res) => {
                  brandingMarcaAgua, brandingLogoUrl, brandingLogoPosicion, brandingFooter]
             );
 
-            // Incrementar contador
-            await client.query(
-                'UPDATE usuarios SET plantillas_creadas = plantillas_creadas + 1 WHERE id_usuario = $1',
-                [req.session.userId]
-            );
+            // plantillas_creadas se calcula dinámicamente en GET /me via COUNT. No se usa contador denormalizado.
 
             await client.query('COMMIT');
             res.status(201).json({ plantilla: result.rows[0] });
@@ -286,11 +282,7 @@ router.delete('/:id', validateParams(idPlantillaParamSchema), async (req, res) =
                 return res.status(404).json({ error: 'Plantilla no encontrada.' });
             }
 
-            // Decrementar contador
-            await client.query(
-                'UPDATE usuarios SET plantillas_creadas = GREATEST(plantillas_creadas - 1, 0) WHERE id_usuario = $1',
-                [req.session.userId]
-            );
+            // plantillas_creadas se calcula dinámicamente en GET /me via COUNT. No se usa contador denormalizado.
 
             await client.query('COMMIT');
             res.json({ message: 'Plantilla eliminada exitosamente.' });
