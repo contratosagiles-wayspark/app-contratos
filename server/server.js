@@ -21,6 +21,7 @@ const logger = require('./config/logger');
 const morgan = require('morgan');
 
 const { pool, initDB } = require('./db/pool');
+const { runMigrations } = require('./db/migrate');
 const authRoutes = require('./routes/auth');
 const contratosRoutes = require('./routes/contratos');
 const plantillasRoutes = require('./routes/plantillas');
@@ -219,6 +220,7 @@ app.use((err, req, res, next) => {
 async function start() {
     try {
         await initDB();
+        await runMigrations();
         app.locals.emailTransporter = await setupEmailTransporter();
         require('./jobs/verificarTrials');
         app.listen(PORT, () => {
