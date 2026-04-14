@@ -12,7 +12,7 @@ async function requireAdmin(req, res, next) {
             [req.session.userId]
         );
 
-        if (!result.rows[0] || result.rows[0].rol !== 'admin') {
+        if (!result.rows[0] || result.rows[0].rol !== 'superadmin') {
             return res.status(403).json({
                 error: 'acceso_denegado',
                 mensaje: 'No tenés permisos para acceder a esta sección.'
