@@ -4,7 +4,7 @@
     "rewrites": [
         {
             "source": "/api/(.*)",
-            "destination": "https://app-contratos-production.up.railway.app/api/$1"
+            "destination": "$RAILWAY_BACKEND_URL/api/$1"
         },
         {
             "source": "/(.*)",
