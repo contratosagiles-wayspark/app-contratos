@@ -15,6 +15,7 @@ import AdminUsuarioDetallePage from './pages/AdminUsuarioDetallePage';
 import NotFoundPage from './pages/NotFoundPage';
 import TerminosPage from './pages/TerminosPage';
 import PrivacidadPage from './pages/PrivacidadPage';
+import EquipoPage from './pages/EquipoPage';
 
 function App() {
     return (
@@ -24,6 +25,7 @@ function App() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/recover" element={<RecoverPasswordPage />} />
                 <Route path="/register" element={<RegisterPage />} />
+                <Route path="/equipo" element={<EquipoPage />} />
                 <Route path="/home" element={<HomePage />} />
                 <Route path="/plantilla/nueva" element={<TemplatePage />} />
                 <Route path="/plantilla/editar/:idPlantilla" element={<TemplatePage />} />
