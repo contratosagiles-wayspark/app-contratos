@@ -185,6 +185,8 @@ router.get('/me', async (req, res) => {
                 u.rol,
                 u.deleted_at,
                 u.onboarding_completado,
+                u.tenant_id,
+                u.tenant_role,
                 (SELECT COUNT(*)::int
                  FROM plantillas p
                  WHERE p.id_usuario = u.id_usuario
