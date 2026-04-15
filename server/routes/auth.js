@@ -414,6 +414,36 @@ router.post('/reset-password', validateBody(resetPasswordSchema), async (req, re
     }
 });
 
+// GET /api/auth/invitacion/:token
+// Valida un token de invitación y devuelve email + nombre del tenant sin consumir el token
+router.get('/invitacion/:token', async (req, res) => {
+  const { token } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT ti.email, t.nombre AS nombre_tenant
+       FROM tenant_invitations ti
+       JOIN tenants t ON t.id = ti.tenant_id
+       WHERE ti.token = $1
+         AND ti.accepted_at IS NULL
+         AND ti.expires_at > NOW()`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'La invitación es inválida o ya expiró.' });
+    }
+
+    res.json({
+      email: result.rows[0].email,
+      nombre_tenant: result.rows[0].nombre_tenant
+    });
+  } catch (err) {
+    console.error('Error validando token de invitación:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+});
+
 // POST /api/auth/aceptar-invitacion/:token
 // Registra un nuevo usuario a partir de una invitación válida y lo une al tenant
 router.post('/aceptar-invitacion/:token', async (req, res) => {
