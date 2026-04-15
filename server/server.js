@@ -28,6 +28,7 @@ const plantillasRoutes = require('./routes/plantillas');
 const uploadsRoutes = require('./routes/uploads');
 const suscripcionesRoutes = require('./routes/suscripciones');
 const adminRoutes = require('./routes/admin');
+const tenantRoutes = require('./routes/tenant');
 const { apiLimiter } = require('./middleware/rateLimiter');
 
 const helmet = require('helmet');
@@ -188,6 +189,7 @@ app.use('/api/plantillas', plantillasRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/suscripciones', suscripcionesRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/tenant', tenantRoutes);
 
 
 

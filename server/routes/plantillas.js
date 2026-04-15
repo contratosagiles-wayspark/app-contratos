@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { loadTenantPermisos } = require('../middleware/tenantMiddleware');
 const { requirePlan } = require('../middleware/requirePlan');
 const { validateBody, validateParams } = require('../middleware/validate');
 const { crearPlantillaSchema, actualizarPlantillaSchema, idPlantillaParamSchema } = require('../validators/plantillas');
@@ -16,6 +17,7 @@ const router = express.Router();
 router.use(plantillasLimiter);
 
 router.use(requireAuth);
+router.use(loadTenantPermisos);
 
 // ── Multer config para upload de logos ──────────────────────
 const logosDir = path.join(__dirname, '..', 'uploads', 'logos');
@@ -76,10 +78,14 @@ router.post('/upload-logo', requirePlan(['Pro', 'Empresa']), (req, res) => {
 // ── GET /api/plantillas ─────────────────────────────────────
 router.get('/', async (req, res) => {
     try {
-        const result = await pool.query(
-            'SELECT * FROM plantillas WHERE id_usuario = $1 ORDER BY created_at DESC',
-            [req.session.userId]
-        );
+        // Visibilidad: si el usuario pertenece a un tenant, ve todas las plantillas del tenant
+        const usuario = req.usuario;
+        const plantillasQuery = usuario.tenant_id
+          ? 'SELECT * FROM plantillas WHERE tenant_id = $1 ORDER BY created_at DESC'
+          : 'SELECT * FROM plantillas WHERE id_usuario = $1 ORDER BY created_at DESC';
+        const plantillasParam = usuario.tenant_id ? usuario.tenant_id : req.session.userId;
+
+        const result = await pool.query(plantillasQuery, [plantillasParam]);
         res.json({ plantillas: result.rows });
     } catch (err) {
         logger.error('Error en GET /plantillas: ' + err.message, { error: err });
@@ -90,10 +96,14 @@ router.get('/', async (req, res) => {
 // ── GET /api/plantillas/:id ─────────────────────────────────
 router.get('/:id', validateParams(idPlantillaParamSchema), async (req, res) => {
     try {
-        const result = await pool.query(
-            'SELECT * FROM plantillas WHERE id_plantilla = $1 AND id_usuario = $2',
-            [req.params.id, req.session.userId]
-        );
+        // Acceso: si pertenece a un tenant, puede acceder a plantillas del tenant
+        const usuario = req.usuario;
+        const plantillaQuery = usuario.tenant_id
+          ? 'SELECT * FROM plantillas WHERE id_plantilla = $1 AND tenant_id = $2'
+          : 'SELECT * FROM plantillas WHERE id_plantilla = $1 AND id_usuario = $2';
+        const plantillaParam = usuario.tenant_id ? usuario.tenant_id : req.session.userId;
+
+        const result = await pool.query(plantillaQuery, [req.params.id, plantillaParam]);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Plantilla no encontrada.' });

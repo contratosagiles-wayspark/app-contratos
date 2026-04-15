@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { loadTenantPermisos } = require('../middleware/tenantMiddleware');
 const { requirePlan } = require('../middleware/requirePlan');
 const { generarPDFContrato } = require('../services/pdfService');
 const storageService = require('../services/storageService');
@@ -81,14 +82,29 @@ router.use(requireAuth);
 
 // ── GET /api/contratos ──────────────────────────────────────
 // Paginación para scroll infinito
-router.get('/', validateQuery(paginacionQuerySchema), async (req, res) => {
+router.get('/', loadTenantPermisos, validateQuery(paginacionQuerySchema), async (req, res) => {
     const { page, limit, buscar, estado } = req.query;
     const offset = (page - 1) * limit;
 
     try {
         // Construir condiciones dinámicas
-        const conditions = ['c.id_usuario = $1'];
-        const params = [req.session.userId];
+        // Visibilidad multi-tenant:
+        // - Sin tenant o member sin can_ver_equipo: solo contratos propios
+        // - Owner o member con can_ver_equipo: todos los contratos del tenant
+        let conditions, params;
+        const usuario = req.usuario;
+        const esTenantVisible =
+          usuario.tenant_id &&
+          (usuario.tenant_role === 'owner' ||
+            (usuario.tenant_role === 'member' && usuario.permisos?.can_ver_equipo));
+
+        if (esTenantVisible) {
+          conditions = ['c.tenant_id = $1'];
+          params = [usuario.tenant_id];
+        } else {
+          conditions = ['c.id_usuario = $1'];
+          params = [req.session.userId];
+        }
         let paramIndex = 2;
 
         if (buscar) {

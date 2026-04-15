@@ -1,0 +1,232 @@
+.equipo-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+}
+
+.equipo-header {
+  margin-bottom: 32px;
+
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  p {
+    color: #888;
+    font-size: 0.95rem;
+  }
+}
+
+.equipo-section {
+  margin-bottom: 40px;
+
+  h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+}
+
+.equipo-invitar-form {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+
+  input {
+    flex: 1;
+    min-width: 220px;
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    outline: none;
+
+    &:focus {
+      border-color: #6366f1;
+    }
+  }
+
+  button {
+    padding: 10px 20px;
+    background: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.equipo-msg {
+  margin-top: 10px;
+  font-size: 0.9rem;
+
+  &.success { color: #22c55e; }
+  &.error   { color: #ef4444; }
+}
+
+.equipo-miembro-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .equipo-miembro-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    .equipo-miembro-nombre {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .equipo-miembro-email {
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    .equipo-miembro-rol {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6366f1;
+    }
+  }
+
+  .equipo-miembro-acciones {
+    display: flex;
+    gap: 8px;
+
+    button {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border: 1px solid #d1d5db;
+      background: white;
+
+      &:hover { background: #f3f4f6; }
+
+      &.btn-danger {
+        border-color: #fca5a5;
+        color: #ef4444;
+
+        &:hover { background: #fef2f2; }
+      }
+    }
+  }
+}
+
+.equipo-pendiente-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #fafafa;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: #666;
+
+  span { font-weight: 500; }
+}
+
+.equipo-permisos-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.equipo-permisos-modal {
+  background: white;
+  border-radius: 14px;
+  padding: 28px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+  }
+}
+
+.equipo-permiso-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.9rem;
+
+  &:last-child { border-bottom: none; }
+
+  label { color: #374151; }
+
+  input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
+}
+
+.equipo-permisos-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+
+  button {
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+
+    &.btn-cancelar {
+      background: white;
+      border: 1px solid #d1d5db;
+    }
+
+    &.btn-guardar {
+      background: #6366f1;
+      color: white;
+      border: none;
+
+      &:disabled { opacity: 0.6; }
+    }
+  }
+}
+
+.equipo-empty {
+  text-align: center;
+  padding: 32px;
+  color: #9ca3af;
+  font-size: 0.95rem;
+  border: 1px dashed #e5e7eb;
+  border-radius: 10px;
+}

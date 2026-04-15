@@ -185,6 +185,8 @@ router.get('/me', async (req, res) => {
                 u.rol,
                 u.deleted_at,
                 u.onboarding_completado,
+                u.tenant_id,
+                u.tenant_role,
                 (SELECT COUNT(*)::int
                  FROM plantillas p
                  WHERE p.id_usuario = u.id_usuario
@@ -410,6 +412,136 @@ router.post('/reset-password', validateBody(resetPasswordSchema), async (req, re
         logger.error('Error en reset-password: ' + err.message, { error: err });
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
+});
+
+// GET /api/auth/invitacion/:token
+// Valida un token de invitación y devuelve email + nombre del tenant sin consumir el token
+router.get('/invitacion/:token', async (req, res) => {
+  const { token } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT ti.email, t.nombre AS nombre_tenant
+       FROM tenant_invitations ti
+       JOIN tenants t ON t.id = ti.tenant_id
+       WHERE ti.token = $1
+         AND ti.accepted_at IS NULL
+         AND ti.expires_at > NOW()`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'La invitación es inválida o ya expiró.' });
+    }
+
+    res.json({
+      email: result.rows[0].email,
+      nombre_tenant: result.rows[0].nombre_tenant
+    });
+  } catch (err) {
+    console.error('Error validando token de invitación:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+});
+
+// POST /api/auth/aceptar-invitacion/:token
+// Registra un nuevo usuario a partir de una invitación válida y lo une al tenant
+router.post('/aceptar-invitacion/:token', async (req, res) => {
+  const { token } = req.params;
+  const { nombre, password } = req.body;
+
+  if (!nombre || nombre.trim() === '') {
+    return res.status(400).json({ error: 'El nombre es requerido' });
+  }
+  if (!password || password.length < 8) {
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
+  }
+
+  const client = await pool.connect();
+  try {
+    // Buscar invitación válida (no expirada, no aceptada)
+    const invResult = await client.query(
+      'SELECT * FROM tenant_invitations WHERE token = $1 AND accepted_at IS NULL AND expires_at > NOW()',
+      [token]
+    );
+    if (invResult.rows.length === 0) {
+      return res.status(400).json({ error: 'La invitación es inválida o ya expiró' });
+    }
+
+    const invitacion = invResult.rows[0];
+
+    // Verificar si el email ya tiene cuenta
+    const usuarioExistente = await client.query(
+      'SELECT id_usuario, tenant_id FROM usuarios WHERE email = $1',
+      [invitacion.email]
+    );
+
+    await client.query('BEGIN');
+
+    let usuarioId;
+
+    if (usuarioExistente.rows.length > 0) {
+      // Usuario existente: solo actualizamos tenant si no tiene uno
+      const u = usuarioExistente.rows[0];
+      if (u.tenant_id) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Este usuario ya pertenece a un tenant' });
+      }
+      usuarioId = u.id_usuario;
+      await client.query(
+        "UPDATE usuarios SET tenant_id = $1, tenant_role = 'member' WHERE id_usuario = $2",
+        [invitacion.tenant_id, usuarioId]
+      );
+    } else {
+      // Nuevo usuario: crear cuenta
+      const salt = await bcrypt.genSalt(12);
+      const contrasenaHash = await bcrypt.hash(password, salt);
+      const nuevoUsuario = await client.query(
+        `INSERT INTO usuarios (nombre, email, contrasena_hash, plan_actual, tenant_id, tenant_role, email_verificado, created_at)
+         VALUES ($1, $2, $3, 'Empresa', $4, 'member', true, NOW())
+         RETURNING id_usuario`,
+        [nombre.trim(), invitacion.email, contrasenaHash, invitacion.tenant_id]
+      );
+      usuarioId = nuevoUsuario.rows[0].id_usuario;
+    }
+
+    // Crear permisos usando los definidos en la invitación
+    const permisos = invitacion.permisos || {};
+    await client.query(
+      `INSERT INTO tenant_member_permissions
+         (id, usuario_id, tenant_id, can_crear_contratos, can_editar_contratos, can_eliminar_contratos,
+          can_crear_plantillas, can_editar_plantillas, can_firmar_contratos, can_descargar_pdf, can_ver_equipo)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       ON CONFLICT (usuario_id, tenant_id) DO NOTHING`,
+      [
+        usuarioId, invitacion.tenant_id,
+        permisos.can_crear_contratos ?? true,
+        permisos.can_editar_contratos ?? true,
+        permisos.can_eliminar_contratos ?? false,
+        permisos.can_crear_plantillas ?? false,
+        permisos.can_editar_plantillas ?? false,
+        permisos.can_firmar_contratos ?? true,
+        permisos.can_descargar_pdf ?? true,
+        permisos.can_ver_equipo ?? false
+      ]
+    );
+
+    // Marcar invitación como aceptada
+    await client.query(
+      'UPDATE tenant_invitations SET accepted_at = NOW() WHERE id = $1',
+      [invitacion.id]
+    );
+
+    await client.query('COMMIT');
+
+    res.status(201).json({ message: 'Invitación aceptada. Ya podés iniciar sesión.' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error aceptando invitación:', err);
+    res.status(500).json({ error: 'Error interno al procesar la invitación' });
+  } finally {
+    client.release();
+  }
 });
 
 module.exports = router;
