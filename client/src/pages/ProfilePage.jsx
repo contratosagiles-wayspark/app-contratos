@@ -224,6 +224,7 @@ function ProfilePage() {
             </div>
 
             {/* Plan Section */}
+            {usuario?.tenant_role !== 'member' && (
             <div className="section-card">
                 <h3>Mi Plan</h3>
 
@@ -357,6 +358,7 @@ function ProfilePage() {
                     </div>
                 )}
             </div>
+            )}
 
             {/* Password Section */}
             <div className="section-card">
@@ -408,7 +410,7 @@ function ProfilePage() {
             <div className="danger-zone-section">
                 <h3>Zona de peligro</h3>
                 
-                {esPago && (
+                {esPago && usuario?.tenant_role !== 'member' && (
                     <div className="danger-card">
                         <div className="danger-card-info">
                             <h4>Cancelar suscripción</h4>
