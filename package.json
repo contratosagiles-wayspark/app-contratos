@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Aplicación web para gestión de contratos de servicios",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "start": "node server/server.js",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
